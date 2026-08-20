@@ -58,8 +58,14 @@ type DetailerWriter interface {
 	DetailsCreate() map[string]any
 }
 
+type AlsoBe interface {
+	// 让当前错误对象也可以被判定为指定类型
+	AlsoBe(error) EE
+}
+
 type EE interface {
 	E
 	DetailerWriter
 	MessageOverrider
+	AlsoBe
 }

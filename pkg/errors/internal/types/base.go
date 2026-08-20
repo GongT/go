@@ -1,6 +1,7 @@
 package types
 
 import (
+	stderrors "errors"
 	"maps"
 
 	"github.com/gongt/go/internal/myenv"
@@ -17,6 +18,7 @@ type ErrorObjectBase struct {
 	overrideMessage string
 	stack           stacktrace.StackTraceArray
 	details         map[string]any
+	alsoBeTypes     []error
 }
 
 func (e *ErrorObjectBase) StackTrace() stacktrace.StackTraceArray {
@@ -58,6 +60,29 @@ func (e *ErrorObjectBase) SetDetail(key string, value any) internal.EE {
 	}
 	d := e.DetailsCreate()
 	d[key] = value
+	return e
+}
+
+// Is被[stderrors.Is]调用
+//   - 在 e == target == false 判断之后
+//   - 在 Unwrap() 之前
+func (e *ErrorObjectBase) Is(target error) bool {
+	if e == nil || target == nil {
+		return false
+	}
+	for _, t := range e.alsoBeTypes {
+		if stderrors.Is(target, t) {
+			// 几乎完全等同于 target==t 但不能完全保证，所以还是调用一下 Is
+			// 此处target和t的先后顺序没有合理性，无法真正确定
+			// 因为理论上target和t都是裸的error对象，类似os.NotExist这种
+			return true
+		}
+	}
+	return false
+}
+
+func (e *ErrorObjectBase) AlsoBe(t error) internal.EE {
+	e.alsoBeTypes = append(e.alsoBeTypes, t)
 	return e
 }
 

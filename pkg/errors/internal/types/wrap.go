@@ -53,6 +53,15 @@ func (e *ErrorObjectWrapped) SetDetail(key string, value any) internal.EE {
 	return e
 }
 
+func (e *ErrorObjectWrapped) Is(target error) bool {
+	return e.base.Is(target)
+}
+
+func (e *ErrorObjectWrapped) AlsoBe(t error) internal.EE {
+	e.base.AlsoBe(t)
+	return e
+}
+
 func Wrap(stackAdd int, err error, forceStack bool, msg string, args []any) *ErrorObjectWrapped {
 	if err == nil {
 		return nil

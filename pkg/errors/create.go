@@ -40,21 +40,21 @@ func NewTemplate(message string) *types.ErrorTemplate {
 //   - 第一个参数是一个error对象，通常是全局常量，可用于[errors.Is]判断
 //   - 此error的字符串将被用于[fmt.Sprintf]格式化
 //   - 匿名的用[NewAnonymous]创建
-func NewInstance(message error, args ...any) internal.EE {
-	if message == nil {
+func NewInstance(template error, args ...any) internal.EE {
+	if template == nil {
 		panic("errors.NewInstance: message is nil")
 	}
 
 	var err internal.EE
-	switch e := message.(type) {
+	switch e := template.(type) {
 	case internal.EE:
 		err = e
 	case *types.ErrorTemplate:
 		return e.New(args...)
 	default:
-		err = types.Create(message, 1)
+		err = types.Create(template, 1)
 	}
-	err.OverrideMessage(fmt.Sprintf(message.Error(), args...))
+	err.OverrideMessage(fmt.Sprintf(template.Error(), args...))
 	return err
 }
 
@@ -85,6 +85,22 @@ func Extend(err error, message string, args ...any) ErrWrap {
 	}
 	return types.Wrap(1, err, false, message, args)
 }
+
+// 将err用template提前定义的错误包装起来
+//   - 大多数情况下和普通的Extend效果相同
+//   - 唯一区别在于可以用[stderrors.Is]同时判断两个错误
+//   - “template”不会出现在任何一条链上
+//
+// Example:
+//
+//	tmpl := NewTemplate("无法读取文件%s")
+//	_, err := os.ReadFile(file)
+//	if err != nil {
+//	  err = ExtendWith(err, tmpl, file)
+//	}
+//	errors.Is(err, os.ErrNotExist) // true
+//	errors.Is(err, tmpl) // true
+func ExtendWith(err error, template *types.ErrorTemplate, args ...any) ErrWrap {}
 
 // [Extend]但覆盖栈信息
 func ExtendTrace(err error, message string, args ...any) ErrWrap {

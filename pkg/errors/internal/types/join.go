@@ -58,6 +58,15 @@ func (e *ErrorObjectJoined) SetDetail(key string, value any) internal.EE {
 	return e
 }
 
+func (e *ErrorObjectJoined) Is(target error) bool {
+	return e.self.Is(target)
+}
+
+func (e *ErrorObjectJoined) AlsoBe(t error) internal.EE {
+	e.self.AlsoBe(t)
+	return e
+}
+
 var default_title = "发生多个错误"
 
 // 合并多个同级别的错误

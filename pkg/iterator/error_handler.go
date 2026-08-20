@@ -7,7 +7,7 @@ import (
 )
 
 // 错误回调，如果返回 true，则继续迭代，返回 false，则停止迭代
-type ErrorHandler func(err error) bool
+type ErrorHandler = func(err error) bool
 
 type Yield[T any] = func(T, error) bool
 type iterFuncErr[T any] = func(Yield[T])
