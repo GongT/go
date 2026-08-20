@@ -1,0 +1,7 @@
+.vscode/local-history
+go.sum
+*.generated.*
+/bin
+
+*_generated.go
+*_generated_*.go
