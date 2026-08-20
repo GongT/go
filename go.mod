@@ -1,7 +1,5 @@
 module github.com/gongt/go
 
-replace github.com/gongt/go => .
-
 go 1.26.3
 
 require (
