@@ -1,89 +1,86 @@
 package sourcecode
 
 import (
-	"go/ast"
-	"go/parser"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/gongt/go/pkg/errors"
-	"github.com/gongt/go/pkg/filesys"
+	"github.com/gongt/go/pkg/fsys"
 	"golang.org/x/mod/modfile"
 )
 
-func FindGoMod(fromPath string) (string, error) {
-	modFile, _ := filesys.FindUpUntilEntry(fromPath, "go.mod", ".git")
-	if path.Base(modFile) != "go.mod" {
-		return "", errors.NewAnonymous("无法找到go.mod文件").WithDetails("path", fromPath)
-	}
-
-	return modFile, nil
+type GoModFile struct {
+	Path       string
+	content    []byte
+	moduleName string
 }
 
-func CalculateImportPath(filePath string) (string, error) {
-	modFile, err := FindGoMod(filePath)
-	if err != nil {
-		return "", err
+func FindGoMod(fromPath string) (*GoModFile, error) {
+	found, _ := fsys.FindUpUntilEntry(fromPath, "go.mod", ".git")
+	if path.Base(found) != "go.mod" {
+		return nil, errors.NewAnonymous("无法找到go.mod文件").WithDetails("path", fromPath)
 	}
 
-	goModData, _ := os.ReadFile(modFile)
-	modName := modfile.ModulePath(goModData)
-
-	relativePath, _ := filepath.Rel(path.Dir(modFile), filePath)
-
-	return path.Join(modName, relativePath), nil
+	return OpenGoMod(found), nil
 }
 
-func DetectPackageName(folderPath string) (string, error) {
-	entries, err := os.ReadDir(folderPath)
+func OpenGoMod(filePath string) *GoModFile {
+	return &GoModFile{
+		Path: filePath,
+	}
+}
+
+func (g *GoModFile) Dir() string {
+	return path.Dir(g.Path)
+}
+func (g *GoModFile) LoadFile() error {
+	if g.content != nil {
+		return nil
+	}
+
+	content, err := os.ReadFile(g.Path)
 	if err != nil {
-		return "", errors.Extend(err, "无法读取文件夹").WithDetails("path", folderPath)
-	}
-	var goFiles []os.DirEntry
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		if entry.Name() == "exports.go" {
-			continue
-		}
-		if path.Ext(entry.Name()) == ".go" {
-			goFiles = append(goFiles, entry)
-		}
+		return errors.Extend(err, "无法读取go.mod文件").WithDetails("path", g.Path)
 	}
 
-	if len(goFiles) == 0 {
-		return normalize(path.Base(folderPath)), nil
-	}
+	g.content = content
+	return nil
+}
 
-	var foundPackageName string
-
-	for _, file := range goFiles {
-		filePath := path.Join(folderPath, file.Name())
-
-		var ast *ast.File
-		ast, err = ReadSourceFile(filePath, parser.PackageClauseOnly)
-		if err != nil {
+func (g *GoModFile) GetModuleName() (string, error) {
+	if g.moduleName == "" {
+		if err := g.LoadFile(); err != nil {
 			return "", err
 		}
-
-		name := ast.Name.Name
-		name = strings.TrimSuffix(name, "_test")
-
-		if foundPackageName == "" {
-			foundPackageName = name
-		} else if foundPackageName != name {
-			return "", errors.NewAnonymous("目录中包名不一致").WithDetails("path", filePath, "foundPackageName", foundPackageName, "currentPackageName", name)
+		modName := modfile.ModulePath(g.content)
+		if modName == "" {
+			return "", errors.NewAnonymous("go.mod文件中缺少模块名").WithDetails("path", g.Path)
 		}
+		g.moduleName = modName
 	}
-
-	return foundPackageName, nil
+	return g.moduleName, nil
 }
 
-func normalize(name string) string {
-	re := regexp.MustCompile(`[a-zA-Z0-9]+`)
-	return strings.Join(re.FindAllString(name, -1), "")
+// 给定一个文件路径，计算它的绝对导入路径（import path）
+func (g *GoModFile) CalculateImportPath(filePath string) (string, error) {
+	relativePath, err := filepath.Rel(path.Dir(g.Path), filePath)
+	if err != nil {
+		return "", errors.Extend(err, "无法计算相对路径").WithDetails("base", path.Dir(g.Path), "target", filePath)
+	}
+
+	relativePath = filepath.Clean(relativePath)
+
+	if moduleName, err := g.GetModuleName(); err == nil {
+		if relativePath == "." {
+			return moduleName, nil
+		}
+		if strings.HasPrefix(relativePath, "..") {
+			return "", errors.NewAnonymous("文件路径不在go.mod模块内").WithDetails("filePath", filePath, "goModPath", g.Path)
+		}
+		return moduleName + "/" + relativePath, nil
+	} else {
+		return "", err
+	}
 }

@@ -1,8 +1,12 @@
-package filesys
+package fsys
 
 import (
+	"iter"
 	"os"
 	"path"
+
+	"github.com/gongt/go/internal/myenv"
+	"github.com/gongt/go/pkg/fsys/fpath"
 )
 
 // 从startDir开始，向上展开每个目录，直到满足predicate的条件
@@ -39,4 +43,32 @@ func FindUpUntilEntry(startDir string, fileNames ...string) (string, bool) {
 	}
 
 	return path.Join(dir, fileNames[idx]), true
+}
+
+// 向上逐层展开文件夹路径，直到根目录（包括传入的目录本身）
+//
+// 不要求任何目录存在，纯字符串操作
+func ClimbingPath[T fpath.PathLike](dir T) iter.Seq[*fpath.IPath] {
+	str := fpath.ToString(dir)
+
+	iter := fpath.New(str)
+	if myenv.IsDebug {
+		if !iter.IsAbs() {
+			panic("ClimbingPath: 路径必须是绝对路径")
+		}
+	}
+
+	return func(yield func(*fpath.IPath) bool) {
+		for {
+			if !yield(iter.Immutable()) {
+				return
+			}
+
+			iter.Dir()
+
+			if iter.IsRoot() {
+				return
+			}
+		}
+	}
 }

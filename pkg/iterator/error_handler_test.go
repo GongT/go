@@ -1,4 +1,4 @@
-package iterator_test
+package iterator
 
 import (
 	"errors"
@@ -6,15 +6,16 @@ import (
 	"testing"
 
 	"github.com/gongt/go/internal/myenv"
-	. "github.com/gongt/go/pkg/iterator"
 	"github.com/stretchr/testify/assert"
 )
+
+var theErr = errors.New("An error occurred at i=5")
 
 func TestIterateBreak(t *testing.T) {
 	myenv.RedirectDebugTesting(t)
 
 	var result []int
-	for i := range iterateOverValue() {
+	for i := range iterateOverValue(nil) {
 		result = append(result, i)
 	}
 
@@ -23,12 +24,18 @@ func TestIterateBreak(t *testing.T) {
 
 func TestErrorCatcher(t *testing.T) {
 	myenv.RedirectDebugTesting(t)
-	
+
 	var result []int
-	handler, holder := CreateErrorStore(nil)
+	handler, errBox := RecordFirstErrorBreak()
+	for i := range iterateOverValue(handler) {
+		result = append(result, i)
+	}
 
+	assert.Equal(t, []int{0, 1, 2, 3, 4, 5}, result)
+	assert.Equal(t, theErr, errBox.Get())
+}
 
-func iterateOverValue() iter.Seq[int] {
+func iterateOverValue(handler ErrorHandler) iter.Seq[int] {
 	return CreateIterator(func(yield Yield[int]) {
 		// Example iteration logic
 		for i := range 10 {
@@ -37,10 +44,10 @@ func iterateOverValue() iter.Seq[int] {
 			}
 			if i == 5 {
 				// Simulate an error condition
-				if !yield(0, errors.New("An error occurred at i=5")) {
+				if !yield(0, theErr) {
 					break
 				}
 			}
 		}
-	}, nil)
+	}, handler)
 }

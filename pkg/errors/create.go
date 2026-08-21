@@ -100,7 +100,14 @@ func Extend(err error, message string, args ...any) ErrWrap {
 //	}
 //	errors.Is(err, os.ErrNotExist) // true
 //	errors.Is(err, tmpl) // true
-func ExtendWith(err error, template *types.ErrorTemplate, args ...any) ErrWrap {}
+func ExtendWith(err error, template error, args ...any) ErrWrap {
+	if err == nil {
+		return nil
+	}
+	e := Extend(err, template.Error(), args...)
+	e.AlsoBe(template)
+	return e
+}
 
 // [Extend]但覆盖栈信息
 func ExtendTrace(err error, message string, args ...any) ErrWrap {

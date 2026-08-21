@@ -90,6 +90,15 @@ func RecordFirstErrorContinue() (ErrorHandler, *errorHolder) {
 	}, e
 }
 
+// 迭代器会继续迭代，记录最后一个遇到的错误
+func RecordLastErrorContinue() (ErrorHandler, *errorHolder) {
+	e := &errorHolder{}
+	return func(err error) bool {
+		e.error = err
+		return true
+	}, e
+}
+
 type errorsHolder struct {
 	errors []error
 }

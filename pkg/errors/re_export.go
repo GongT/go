@@ -19,3 +19,7 @@ func AsType[E error](err error) (E, bool) {
 }
 
 var ErrUnsupported = stderrors.ErrUnsupported
+
+func NewStd(message string) error {
+	return stderrors.New(message)
+}

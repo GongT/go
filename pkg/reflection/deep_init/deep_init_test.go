@@ -5,7 +5,7 @@ import (
 
 	"github.com/goforj/godump"
 	"github.com/gongt/go/internal/myenv"
-	"github.com/gongt/go/interfaces"
+	"github.com/gongt/go/pkg/interfaces"
 	"github.com/stretchr/testify/require"
 )
 
