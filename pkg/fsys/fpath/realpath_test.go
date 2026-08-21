@@ -111,6 +111,12 @@ func TestRealpath(t *testing.T) {
 	tempDir := t.TempDir()
 	files := createTestFiles(tempDir)
 
+	file, _ := myenv.CurrentFileLine()
+	_, base := filepath.Split(file)
+	p := New(base)
+	p.MustRealpath()
+	require.Equal(t, file, p.String())
+
 	t.Run("Optional", func(t *testing.T) {
 		allCases(t, files, execOptional, 0)
 	})

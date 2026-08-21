@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -9,37 +8,32 @@ import (
 	"github.com/gongt/go/pkg/errors"
 )
 
+var PathErr = errors.NewTemplate("路径错误")
+
 // 清理路径，去掉多余的斜杠和点
 func Clean(p string) string {
 	return filepath.ToSlash(filepath.Clean(p))
 }
 
 func AssertValidPath(p string) {
-	if myenv.IsDebug {
-		if p == "" {
-			panic("路径包含空值")
-		}
-		if strings.Contains(p, "\\") {
-			panic(fmt.Sprintf("路径中包含反斜杠: %s", p))
-		}
+	if err := CheckValidPath(p); err != nil {
+		panic(err)
 	}
 }
 
 func AssertValidPaths(paths []string) {
-	if myenv.IsDebug {
-		for _, p := range paths {
-			AssertValidPath(p)
-		}
+	if err := CheckValidPaths(paths); err != nil {
+		panic(err)
 	}
 }
 
 func CheckValidPath(p string) error {
 	if myenv.IsDebug {
 		if p == "" {
-			return errors.NewAnonymous("路径包含空值")
+			return PathErr.New("参数包含空值")
 		}
 		if strings.Contains(p, "\\") {
-			return errors.NewAnonymous("路径中包含反斜杠: %s", p)
+			return PathErr.New("参数包含反斜杠: %s", p)
 		}
 	}
 	return nil

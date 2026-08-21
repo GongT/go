@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/gongt/go/pkg/errors"
 	"github.com/gongt/go/pkg/errors/internal"
 	"github.com/gongt/go/pkg/errors/internal/iterator"
 	"github.com/gongt/go/pkg/errors/stacktrace"
@@ -17,6 +18,8 @@ type SB = *color_builder.ColorBuilder
 func FormatError(e any, color bool) string {
 	sb := color_builder.New(color)
 	switch err := e.(type) {
+	case *panicBox:
+		formatError(sb, err.Unwrap())
 	case error:
 		formatError(sb, err)
 	default:
@@ -64,8 +67,8 @@ func formatErrorOne(sb SB, err error, level uint) {
 		// r()
 	}
 
-	if err, ok := err.(internal.StackTrace); ok {
-		formatStack(sb, err.StackTrace(), level)
+	if strace := errors.GetStackTrace(err); len(strace) > 0 {
+		formatStack(sb, strace, level)
 	} else {
 		sb.WriteLine("  - %s缺少栈信息%s", CSI.Fore|CSI.Yellow, CSI.Fore.ToReset())
 	}

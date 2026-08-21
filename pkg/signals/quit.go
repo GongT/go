@@ -5,14 +5,12 @@ import (
 	"log"
 	"os"
 
+	"github.com/gongt/go/internal/myenv"
 	"github.com/gongt/go/pkg/errors"
 	"github.com/gongt/go/pkg/errors/errfmt"
-
-	"golang.org/x/term"
 )
 
 var AppQuit *quitHandler = New()
-var StderrIsTerminal bool = term.IsTerminal(int(os.Stderr.Fd()))
 
 type quitHandler struct {
 	ch chan struct{}
@@ -37,7 +35,7 @@ func (h *quitHandler) MainFinish() {
 	close(h.ch)
 
 	if h.codeSet {
-		if StderrIsTerminal {
+		if myenv.StderrIsTerminal {
 			fmt.Fprintln(os.Stderr, "bye, bye~")
 		}
 
@@ -61,7 +59,7 @@ func (h *quitHandler) Fatal(e any) {
 	close(h.ch)
 	var code int
 
-	r := errfmt.FormatError(e, StderrIsTerminal)
+	r := errfmt.FormatError(e, myenv.StderrIsTerminal)
 	os.Stderr.WriteString(r)
 
 	if err, ok := e.(error); ok {

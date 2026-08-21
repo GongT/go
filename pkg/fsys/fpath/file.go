@@ -13,7 +13,7 @@ type File struct {
 func NewFile(name string) *File {
 	if myenv.IsDebug {
 		if strings.Contains(name, "/") || strings.Contains(name, "\\") {
-			panic("文件名不能包含路径分隔符")
+			panic(PathErr.New("文件名不能包含路径分隔符"))
 		}
 	}
 	return &File{

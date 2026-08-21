@@ -1,5 +1,3 @@
-//go:generate go run ./generate_tags.go
-
 package logger
 
 import (

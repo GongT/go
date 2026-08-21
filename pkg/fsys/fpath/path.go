@@ -9,6 +9,8 @@ import (
 	"github.com/gongt/go/pkg/fsys/fpath/internal"
 )
 
+var PathErr = internal.PathErr
+
 type rawer interface {
 	Raw() string
 }
@@ -22,16 +24,17 @@ type Path struct {
 }
 
 // 创建一个新的路径对象
-func New(p string) *Path {
+func New(ps ...string) *Path {
+	p := strings.Join(ps, "/")
+
 	if p == "" {
 		p = "."
 	}
-	obj := &Path{
+
+	return &Path{
 		value:             p,
 		canonicalizeCache: "",
 	}
-
-	return obj
 }
 
 func (p *Path) push(s string) {
@@ -51,16 +54,21 @@ func (p *Path) replace(s string) {
 // 绝大多数情况下用户程序不需要规范化路径，
 // 反而会破坏符号链接
 func (p *Path) String() string {
-	p.Normalize()
-	return p.value
+	p.NeedsNormalize()
+	return p.canonicalizeCache
 }
 
 func (p *Path) Raw() string {
+	if myenv.IsDebug {
+		if p.value == "" {
+			panic(PathErr.New("Raw: 路径为空"))
+		}
+	}
 	return p.value
 }
 
 func (p *Path) Immutable() *IPath {
-	return &IPath{value: p}
+	return &IPath{value: p.Clone()}
 }
 
 // 规范化路径
@@ -150,8 +158,12 @@ func (p *Path) Dir() *Path {
 // 逻辑上级目录 [path.Dir] 在路径中有符号链接的时候，有些非常特殊的情况会产生错误路径
 func (p *Path) LogicalDir() *Path {
 	pos := strings.LastIndexByte(p.value, '/')
-	if pos >= 0 {
+	if pos > 0 {
 		p.replace(p.value[:pos])
+	} else if pos == 0 {
+		p.replace("/")
+	} else {
+		p.replace(".")
 	}
 	return p
 }

@@ -17,12 +17,7 @@ func INew(p string) *IPath {
 }
 
 func (ip *IPath) String() string {
-	// String()会修改原对象的状态，所以这里需要克隆一个新的对象来调用String()
-	if ip.value.NeedsNormalize() {
-		return ip.value.Clone().String()
-	} else {
-		return ip.value.String()
-	}
+	return ip.value.String()
 }
 func (ip *IPath) Raw() string {
 	return ip.value.Raw()
@@ -97,4 +92,19 @@ func (ip *IPath) RealpathMissing() (*IPath, error) {
 		return nil, err
 	}
 	return &IPath{value: p}, nil
+}
+func (ip *IPath) MustRealpath() *IPath {
+	p := ip.value.Clone()
+	p.MustRealpath()
+	return &IPath{value: p}
+}
+func (ip *IPath) MustRealpathExisting() *IPath {
+	p := ip.value.Clone()
+	p.MustRealpathExisting()
+	return &IPath{value: p}
+}
+func (ip *IPath) MustRealpathMissing() *IPath {
+	p := ip.value.Clone()
+	p.MustRealpathMissing()
+	return &IPath{value: p}
 }

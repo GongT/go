@@ -11,22 +11,14 @@ import (
 
 const maxSymlinkDepth = 50
 
-var ErrLoop = errors.NewStd("Too many symbolic links were encountered")
-var ErrRealpath = errors.NewTemplate("Failed to realpath")
+var ErrLoop = errors.NewTemplate("Too many symbolic links were encountered")
 
 func resolveRealpath(name string, allowMissingFinal bool, allowBrokenLink bool, depth int) (string, error) {
 	if depth > maxSymlinkDepth {
-		return "", ErrLoop
+		return "", ErrLoop.New()
 	}
 
 	absolute := name
-	if !filepath.IsAbs(absolute) {
-		workingDirectory, err := os.Getwd()
-		if err != nil {
-			return "", err
-		}
-		absolute = workingDirectory + string(filepath.Separator) + absolute
-	}
 	volume := filepath.VolumeName(absolute)
 	root := volume + string(filepath.Separator)
 	parts := splitPath(absolute[len(volume):])
@@ -50,7 +42,7 @@ func resolveRealpath(name string, allowMissingFinal bool, allowBrokenLink bool, 
 				}
 				return internal.Clean(candidate), nil
 			}
-			return "", err
+			return "", PathErr.Wrap(err)
 		}
 
 		if info.Mode()&os.ModeSymlink == 0 {
@@ -60,7 +52,7 @@ func resolveRealpath(name string, allowMissingFinal bool, allowBrokenLink bool, 
 
 		target, err := os.Readlink(candidate)
 		if err != nil {
-			return "", err
+			return "", PathErr.Wrap(err)
 		}
 		if !filepath.IsAbs(target) {
 			target = filepath.Join(filepath.Dir(candidate), target)
@@ -82,38 +74,65 @@ func splitPath(name string) []string {
 
 // 跟踪符号链接转换成真实路径，解析后路径一定存在，但可能是损坏的符号链接
 func (p *Path) Realpath() error {
+	if err := p.MaybeConvertAbsolute(); err != nil {
+		return err
+	}
 	value, err := resolveRealpath(p.value, false, true, 0)
 	if err != nil {
-		return ErrRealpath.Wrap(err).WithDetails("path", p.value, "mode", "normal")
+		return PathErr.Wrap(err).WithDetails("path", p.value, "mode", "normal")
 	}
 	p.value = value
 	p.canonicalizeCache = value
 	return nil
+}
+
+func (p *Path) MustRealpath() {
+	if err := p.Realpath(); err != nil {
+		panic(err)
+	}
 }
 
 // 跟踪符号链接转换成真实路径，并且返回的一定是非符号链接文件（目录），任意路径不存在，都返回错误
 //
 // 理应和[filepath.EvalSymlinks]行为一致
 func (p *Path) RealpathExisting() error {
+	if err := p.MaybeConvertAbsolute(); err != nil {
+		return err
+	}
 	value, err := resolveRealpath(p.value, false, false, 0)
 	if err != nil {
-		return ErrRealpath.Wrap(err).WithDetails("path", p.value, "mode", "enforce")
+		return PathErr.Wrap(err).WithDetails("path", p.value, "mode", "enforce")
 	}
 	if _, err = os.Stat(value); err != nil {
-		return ErrRealpath.Wrap(err).WithDetails("path", p.value, "mode", "enforce")
+		return PathErr.Wrap(err).WithDetails("path", p.value, "mode", "enforce")
 	}
 	p.value = value
 	p.canonicalizeCache = value
 	return nil
 }
 
+func (p *Path) MustRealpathExisting() {
+	if err := p.RealpathExisting(); err != nil {
+		panic(err)
+	}
+}
+
 // 跟踪符号链接转换成真实路径，解析后路径可以不存在
 func (p *Path) RealpathMissing() error {
+	if err := p.MaybeConvertAbsolute(); err != nil {
+		return err
+	}
 	value, err := resolveRealpath(p.value, true, true, 0)
 	if err != nil {
-		return ErrRealpath.Wrap(err).WithDetails("path", p.value, "mode", "relax")
+		return PathErr.Wrap(err).WithDetails("path", p.value, "mode", "relax")
 	}
 	p.value = value
 	p.canonicalizeCache = value
 	return nil
+}
+
+func (p *Path) MustRealpathMissing() {
+	if err := p.RealpathMissing(); err != nil {
+		panic(err)
+	}
 }
