@@ -4,5 +4,5 @@ go.sum
 /bin
 /target
 
-# *_generated.go
-# *_generated_*.go
+# *_generate.go
+# *_generate_*.go

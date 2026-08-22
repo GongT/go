@@ -9,7 +9,7 @@ import (
 	PqpLsWuoVY "github.com/gongt/go/pkg/logger"
 )
 
-const _dbg_tag = "gongt:tools:reflection:deep_init"
+const _dbg_tag = "gongt:pkg:reflection:deep_init"
 
 func debug(msg string) {
 	PqpLsWuoVY.DLog(_dbg_tag, msg)

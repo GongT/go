@@ -8,6 +8,7 @@ import (
 	bCUOMTOFUEed "github.com/gongt/go/pkg/errors/stacktrace"
 )
 
+type GenericType2[T comparable] = bZpItAMbgIOW.GenericType2[T]
 type Struct1 = bZpItAMbgIOW.Struct1
 type IFace1 = bZpItAMbgIOW.IFace1
 

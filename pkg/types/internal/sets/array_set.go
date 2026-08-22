@@ -1,16 +1,16 @@
-package types
+// @exported
+package sets
 
-import "sync"
+import (
+	"slices"
+	"sync"
+)
 
+// Set 集合的数组简易实现，适合只有几个元素的情况
 type Set[T comparable] []T
 
 func (s Set[T]) Has(item T) bool {
-	for _, v := range s {
-		if v == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, item)
 }
 
 func (s *Set[T]) Add(item T) {
@@ -28,6 +28,7 @@ func (s *Set[T]) Delete(item T) {
 	}
 }
 
+// SharedSet 线程安全的 [Set]
 type SharedSet[T comparable] struct {
 	mu  sync.RWMutex
 	set Set[T]

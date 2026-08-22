@@ -12,6 +12,10 @@ type GenericType interface {
 	string | int
 }
 
+type GenericType2[T comparable] struct {
+	v T
+}
+
 type Struct1 struct {
 	value string
 }

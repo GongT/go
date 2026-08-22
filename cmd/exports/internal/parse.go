@@ -121,6 +121,34 @@ func emitVar(sb sourcecode.GoFileBuffer, exportType ExportType, isVar bool, symb
 	sb.WriteByte('\n')
 }
 
+func typeParams(sb sourcecode.GoFileBuffer, tp *ast.FieldList, file *sourcecode.FileInfo) string {
+	if tp == nil {
+		return ""
+	}
+
+	params := make([]string, 0, len(tp.List))
+	for _, field := range tp.List {
+		constraint := renderType(sb, file, field.Type)
+		if ident, ok := field.Type.(*ast.Ident); ok {
+			if ident.Name != "any" && ident.Name != "comparable" {
+				constraint = sb.AddImport(file.Container().Path()) + "." + ident.Name
+			}
+		}
+		for _, name := range field.Names {
+			params = append(params, name.Name+" "+constraint)
+		}
+	}
+	printList(sb, params, '[')
+
+	arguments := make([]string, 0)
+	for _, field := range tp.List {
+		for _, name := range field.Names {
+			arguments = append(arguments, name.Name)
+		}
+	}
+	return "[" + strings.Join(arguments, ", ") + "]"
+}
+
 func emitFunc(sb sourcecode.GoFileBuffer, exportType ExportType, decl *ast.FuncDecl, file *sourcecode.FileInfo) {
 	exported := exportedName(decl.Name.Name, exportType)
 	if exported == "" {
@@ -133,21 +161,7 @@ func emitFunc(sb sourcecode.GoFileBuffer, exportType ExportType, decl *ast.FuncD
 	sb.WriteString(exported)
 
 	// 泛型参数部分
-	if decl.Type.TypeParams != nil {
-		params := make([]string, 0, len(decl.Type.TypeParams.List))
-		for _, field := range decl.Type.TypeParams.List {
-			constraint := renderType(sb, file, field.Type)
-			if ident, ok := field.Type.(*ast.Ident); ok {
-				if ident.Name != "any" && ident.Name != "comparable" {
-					constraint = sb.AddImport(file.Container().Path()) + "." + ident.Name
-				}
-			}
-			for _, name := range field.Names {
-				params = append(params, name.Name+" "+constraint)
-			}
-		}
-		fmt.Fprintf(sb, "[%s]", strings.Join(params, ", "))
-	}
+	genericCall := typeParams(sb, decl.Type.TypeParams, file)
 
 	// 参数部分
 	recallArgList := []string{}
@@ -171,7 +185,7 @@ func emitFunc(sb sourcecode.GoFileBuffer, exportType ExportType, decl *ast.FuncD
 			}
 		}
 	}
-	fmt.Fprintf(sb, "(%s)", strings.Join(inputs, ", "))
+	printList(sb, inputs, '(')
 
 	// 返回部分
 	hasReturn := false
@@ -189,7 +203,7 @@ func emitFunc(sb sourcecode.GoFileBuffer, exportType ExportType, decl *ast.FuncD
 			}
 		}
 
-		fmt.Fprintf(sb, "(%s)", strings.Join(outputs, ", "))
+		printList(sb, outputs, '(')
 	}
 
 	// 函数体
@@ -197,18 +211,40 @@ func emitFunc(sb sourcecode.GoFileBuffer, exportType ExportType, decl *ast.FuncD
 	if hasReturn {
 		sb.WriteString("return ")
 	}
-	call := sb.AddImport(file.Container().Path()) + "." + decl.Name.Name
+	pkgIdent := sb.AddImport(file.Container().Path())
+	fmt.Fprintf(sb, "%s.%s", pkgIdent, decl.Name.Name)
+
 	if decl.Type.TypeParams != nil && decl.Type.Params != nil && len(decl.Type.Params.List) == 0 {
-		arguments := make([]string, 0)
-		for _, field := range decl.Type.TypeParams.List {
-			for _, name := range field.Names {
-				arguments = append(arguments, name.Name)
-			}
-		}
-		call += "[" + strings.Join(arguments, ", ") + "]"
+		// 如果函数有泛型参数，但没有输入参数，则需要在调用时传递泛型参数，否则编译器无法推断泛型类型
+		sb.WriteString(genericCall)
 	}
-	fmt.Fprintf(sb, "%s(%s)", call, strings.Join(recallArgList, ", "))
+
+	printList(sb, recallArgList, '(')
 	sb.WriteString("\n}\n\n")
+}
+
+func printList(sb sourcecode.GoFileBuffer, list []string, quote byte) {
+	if quote != 0 {
+		sb.WriteByte(quote)
+	}
+	for i, item := range list {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(item)
+	}
+	if quote != 0 {
+		switch quote {
+		case '(':
+			sb.WriteByte(')')
+		case '[':
+			sb.WriteByte(']')
+		case '{':
+			sb.WriteByte('}')
+		default:
+			panic(fmt.Sprintf("Unsupported quote character: %c", quote))
+		}
+	}
 }
 
 func renderNode(file *sourcecode.FileInfo, node ast.Node) string {
@@ -263,10 +299,14 @@ func emitType(sb sourcecode.GoFileBuffer, exportType ExportType, spec *ast.TypeS
 	copyDoc(sb, doc)
 	sb.WriteString("type ")
 	sb.WriteString(exported)
+
+	genericCall := typeParams(sb, spec.TypeParams, file)
+
 	sb.WriteString(" = ")
 	sb.WriteString(id)
 	sb.WriteByte('.')
 	sb.WriteString(spec.Name.Name)
+	sb.WriteString(genericCall)
 
 	sb.WriteByte('\n')
 }

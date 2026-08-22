@@ -1,4 +1,5 @@
-package types
+// @exported
+package collection
 
 import (
 	"iter"
@@ -6,7 +7,7 @@ import (
 	"sync"
 )
 
-// Collection是一个任意类型指针的可重复的集合
+// Collection 任意类型指针的可重复的集合
 type Collection[T comparable] []T
 
 type RemoveFunc func()
@@ -39,6 +40,7 @@ func (c *Collection[T]) Items() iter.Seq[T] {
 	return slices.Values(*c)
 }
 
+// SharedCollection 线程安全的 [Collection]
 type SharedCollection[T comparable] struct {
 	c  Collection[T]
 	mu sync.RWMutex

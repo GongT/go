@@ -206,10 +206,10 @@ func (p *Path) SetBase(suffix any) *Path {
 		panic(fmt.Sprintf("SetBase: unsupported type %T", suffix))
 	}
 
-	p.Join("..", suffixStr)
+	p.Dir().Join(suffixStr)
 	return p
 }
 func (p *Path) SetFilename(suffix string) *Path {
-	p.Join("..", suffix)
+	p.Dir().Join(suffix)
 	return p
 }

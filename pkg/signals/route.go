@@ -44,6 +44,7 @@ func (r *SignalRouter) WaitForTerm() <-chan struct{} {
 }
 
 func (r *SignalRouter) WaitFor(signal syscall.Signal) <-chan struct{} {
+	// TODO 检查singal是否在r.signals中
 	ch := make(chan struct{})
 	go func() {
 		for {

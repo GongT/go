@@ -115,7 +115,10 @@ func (p *PackageReader) callLoad(dir string, mode packages.LoadMode) ([]*package
 	result := make(map[string]*FileInfo)
 	for pkg := range packages.Postorder(pkgs) {
 		if len(pkg.Errors) > 0 {
-			return pkgs, nil, errors.NewAnonymous("包%s解析失败", pkg.ID).WithDetails("errors", pkg.Errors)
+			log.Printf("包%s解析失败:\n", pkg.ID)
+			for index, suberr := range pkg.Errors {
+				log.Printf("  - %d: %v", index, suberr)
+			}
 		}
 		if pkg.Module != nil {
 			if pkg.Module.Error != nil {

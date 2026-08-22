@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 
 	"github.com/gongt/go/cmd/exports/internal"
 	"github.com/gongt/go/internal/myenv"
@@ -22,22 +24,28 @@ type Options struct {
 	VerboseMode bool `long:"verbose" description:"Enable verbose mode for debugging"`
 }
 
+var allowFileName = regexp.MustCompile(`^exports(?:_(.+))?\.go$`)
+
 func main() {
 	defer signals.AppQuit.Finalize()
 
 	env := myenv.Must(codegen.CreateEnvironment("github.com/gongt/go/cmd/exports", MAGIC_STRING))
 
-	if path.Base(env.InputFile) != "exports.go" {
-		panic("This generator is only supported inside exports.go")
+	if !allowFileName.MatchString(path.Base(env.InputFile)) {
+		panic(errors.New("此生成器仅支持在 exports_xxx.go 中使用"))
 	}
 
 	var opts Options
 	myenv.MustNil(env.ParseArgs(&opts))
 
-	internalDir := fpath.New(env.InputFile, "..", "internal").Immutable().MustRealpath()
+	internalDir, err := fpath.New(env.InputFile).SetFilename("internal").Immutable().RealpathExisting()
+
+	if err != nil {
+		panic(fmt.Errorf("无法找到 internal 目录: %w", err))
+	}
 
 	if stat, err := os.Stat(internalDir.Raw()); err != nil || !stat.IsDir() {
-		panic(fmt.Sprintf("The provided folder %s does not contain an internal directory", internalDir))
+		panic(fmt.Errorf("%s必须是目录", internalDir))
 	}
 
 	if !opts.VerboseMode {

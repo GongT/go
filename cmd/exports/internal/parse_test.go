@@ -33,7 +33,7 @@ func Test_ParseFiles(t *testing.T) {
 
 	ok := assert.Equal(t, strings.TrimSpace(string(content)), strings.TrimSpace(buff.String()))
 	if !ok {
-		debugFile := f.Immutable().Join("../_debug.go")
+		debugFile := f.Immutable().Join("../.debug.go")
 		log.Printf("测试失败，调试文件: %s", debugFile)
 		os.WriteFile(debugFile.Raw(), buff.Bytes(), 0644)
 	}

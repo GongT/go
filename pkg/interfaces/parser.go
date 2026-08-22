@@ -1,3 +1,4 @@
+// 一些常用的接口定义
 package interfaces
 
 type StringerE interface {
