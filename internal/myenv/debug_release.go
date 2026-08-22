@@ -7,3 +7,4 @@ const IsRelease = true
 const IsTesting = false
 
 func Assert(condition bool, message string, args ...any) {}
+func AssertPtr(ptrs ...any)                              {}

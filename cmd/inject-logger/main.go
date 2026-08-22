@@ -5,7 +5,10 @@ import (
 	"path"
 	"strings"
 
+	"github.com/gongt/go/internal/myenv"
 	"github.com/gongt/go/pkg/errors"
+	"github.com/gongt/go/pkg/fsys"
+	"github.com/gongt/go/pkg/fsys/fpath"
 	"github.com/gongt/go/pkg/signals"
 	sourcecode "github.com/gongt/go/pkg/source_code"
 	"github.com/gongt/go/pkg/source_code/codegen"
@@ -20,105 +23,87 @@ type Options struct {
 func main() {
 	defer signals.AppQuit.Finalize()
 
-	env, err := codegen.CreateEnvironment("inject-logger", MAGIC_STRING)
-	if err != nil {
-		panic(err)
-	}
+	env := myenv.Must(codegen.CreateEnvironment("github.com/gongt/go/cmd/inject-logger", MAGIC_STRING))
 
 	opts := &Options{}
-	if err := env.ParseArgs(opts); err != nil {
-		panic(err)
-	}
+	myenv.MustNil(env.ParseArgs(opts))
+
 	if len(env.Args) > 0 {
 		panic(errors.NewAnonymous("unexpected arguments").WithDetails("args", env.Args))
 	}
 
-	original, err := env.ReadAsString()
-	if err != nil {
-		panic(err)
+	outputDir := path.Dir(env.InputFile)
+	outputBuffer := sourcecode.NewGoFileBuffer()
+
+	fileWriter := myenv.Must(env.NewOutput(env.InputFile, outputBuffer))
+
+	goMod := myenv.Must(env.FindGoMod())
+	if !fpath.IsLocal(outputDir, goMod.Dir()) {
+		panic(errors.NewAnonymous("输出文件不在项目内").WithDetails("outputDir", outputDir, "projectDir", goMod.Dir()))
 	}
 
-	file, err := env.NewOutput(env.InputFile, "")
-	if err != nil {
-		panic(err)
+	pkgName := myenv.Must(sourcecode.DetectPackageName(outputDir))
+	outputBuffer.SetPackageName(pkgName)
+
+	var gArgs []string
+	if opts.TagPrefix != "" {
+		gArgs = append(gArgs, fmt.Sprintf("--prefix=%q", opts.TagPrefix))
 	}
+	codegen.WriteGeneratorComment(outputBuffer.Heading(), env.GeneratorFullName, gArgs)
 
-	sb := file.Output()
-
-	gen_found := false
-	for line := range strings.Lines(original) {
-		if strings.HasPrefix(line, "//go:generate ") {
-			gen_found = true
-			sb.WriteString(line)
+	// 查找父目录，通过package名称组装日志tag
+	ignoreSelf := func(ent string) bool {
+		if sourcecode.SimulateGolangBuild(ent) {
+			return true
 		}
-	}
-
-	goMod, err := env.FindGoMod()
-	if err != nil {
-		panic(err)
-	}
-	rootDir := path.Dir(goMod)
-	finalDir := path.Dir(env.InputFile)
-
-	if !strings.HasPrefix(finalDir, rootDir) || finalDir == rootDir {
-		panic(errors.NewAnonymous("finalDir is not a subdirectory of rootDir").WithDetails("finalDir", finalDir, "rootDir", rootDir))
-	}
-
-	if !gen_found {
-		sb.WriteString("//go:generate github.com/gongt/go/cmd/inject-logger")
-		if opts.TagPrefix != "" {
-			fmt.Fprintf(sb, " --prefix=%q", opts.TagPrefix)
+		if ent == path.Base(env.InputFile) {
+			return true
 		}
-		sb.WriteString("\n")
+		return false
 	}
-
 	names := []string{}
-	itr := finalDir
-	for itr != rootDir {
-		pkgName, err := sourcecode.DetectPackageName(itr)
-		if err != nil {
-			panic(err)
+	for dir := range fsys.ClimbingPath(outputDir) {
+		var ignore func(string) bool = nil
+		if dir.Raw() == outputDir {
+			ignore = ignoreSelf
 		}
-		names = append([]string{pkgName}, names...)
-		itr = path.Dir(itr)
+		if fpath.IsEquals(dir, goMod.Dir()) {
+			break
+		}
+
+		package_declarations := myenv.Must(sourcecode.DetectPackageNames(dir.Raw(), ignore))
+		names = append([]string{package_declarations[0]}, names...)
 	}
 
-	sb.WriteString(`
-import (
-	"github.com/gongt/go/pkg/logger"
-)
-
-`)
+	// 生成代码
+	loggerPkg := outputBuffer.AddImport("github.com/gongt/go/pkg/logger")
 
 	if opts.TagPrefix != "" {
 		names = append([]string{opts.TagPrefix}, names...)
 	}
-	fmt.Fprintf(sb, "const _dbg_tag = %q\n", strings.Join(names, ":"))
+	fmt.Fprintf(outputBuffer.Body(), "const _dbg_tag = %q\n", strings.Join(names, ":"))
 
-	sb.WriteString(`
+	outputBuffer.Body().WriteString(fmt.Sprintf(`
 func debug(msg string) {
-	logger.DLog(_dbg_tag, msg)
+	%s.DLog(_dbg_tag, msg)
 }
 var _ = debug
 func debugf(fmt string, args ...any) {
-	logger.DLogF(_dbg_tag, fmt, args...)
+	%s.DLogF(_dbg_tag, fmt, args...)
 }
 var _ = debugf
 
 func print(fmt string) {
-	logger.Log(_dbg_tag, fmt)
+	%s.Log(_dbg_tag, fmt)
 }
 var _ = print
 func printf(fmt string, args ...any) {
-	logger.LogF(_dbg_tag, fmt, args...)
+	%s.LogF(_dbg_tag, fmt, args...)
 }
 var _ = printf
-`)
+`, loggerPkg, loggerPkg, loggerPkg, loggerPkg))
 
-	err = file.WriteFile()
-	if err != nil {
-		panic(err)
-	}
+	myenv.MustNil(fileWriter.WriteFile())
 
 	signals.AppQuit.Set(0)
 }

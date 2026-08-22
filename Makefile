@@ -1,21 +1,32 @@
-BIN_DIR := bin
+TARGET_DIR := target
+RELEASE_DIR := $(TARGET_DIR)/release
+DEBUG_DIR := $(TARGET_DIR)/debug
 
-.PHONY: gen build run clean
+.PHONY: gen build run clean test coverage
 
-all: build
+all: build test
+
+$(DEBUG_DIR) $(RELEASE_DIR):
+	mkdir -p $@
 
 gen:
-	@go generate ./...
+	go generate ./...
 
-build: gen
-	@mkdir -p $(BIN_DIR)
-	@for dir in $(shell find ./cmd -type d -mindepth 1 -maxdepth 1); do \
+build: $(DEBUG_DIR) $(RELEASE_DIR) gen
+	for dir in $(shell find ./cmd -type d -mindepth 1 -maxdepth 1); do \
 		app_name=$$(basename $$dir); \
-		go build --tags release -o $(BIN_DIR)/$$app_name $$dir; \
+		go build --tags "release build" -o target/release/$$app_name $$dir; \
+		go build --tags "debug build" -o target/debug/$$app_name $$dir; \
 	done
 
+test: $(DEBUG_DIR) $(RELEASE_DIR)
+	go test ./... -coverprofile=target/coverage.out
+
+coverage: test
+	go tool cover -html=target/coverage.out -o=target/coverage.html
+
 run:
-	@go run ./cmd
+	go run ./cmd
 
 clean:
-	@rm -rf $(BIN_DIR)
+	rm -rf $(RELEASE_DIR) $(DEBUG_DIR)

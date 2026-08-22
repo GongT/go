@@ -13,6 +13,7 @@ import (
 )
 
 type GoModFile struct {
+	// Path to the go.mod file
 	Path       *fpath.IPath
 	content    []byte
 	moduleName string

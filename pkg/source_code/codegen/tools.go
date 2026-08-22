@@ -1,0 +1,14 @@
+package codegen
+
+import (
+	"fmt"
+	"io"
+)
+
+func WriteGeneratorComment(writer io.Writer, generatorName string, arguments []string) {
+	fmt.Fprintf(writer, "//go:generate go run %s", generatorName)
+	for _, arg := range arguments {
+		fmt.Fprintf(writer, " %s", arg)
+	}
+	fmt.Fprintln(writer)
+}

@@ -29,6 +29,8 @@ func IterWrapChain(err error) iter.Seq[error] {
 }
 
 // [底层操作] 循环遍历一个错误的reason链
+//
+// @exported
 func IterReasonChain(err error) iter.Seq[error] {
 	return func(yield func(error) bool) {
 		for err != nil {

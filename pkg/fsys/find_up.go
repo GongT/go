@@ -65,7 +65,7 @@ func ClimbingPath[T fpath.PathLike](dir T) iter.Seq[*fpath.IPath] {
 				return
 			}
 
-			iter.LogicalDir()
+			iter.Dir()
 
 			next := iter.Raw()
 			if next == current { // 调用LogicalDir()后，路径不变，说明已经到达根目录

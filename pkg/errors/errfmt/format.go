@@ -23,7 +23,7 @@ func FormatError(e any, color bool) string {
 	case error:
 		formatError(sb, err)
 	default:
-		sb.WriteLine("未知错误类型: %T\n%v", e, e)
+		formatError(sb, fmt.Errorf("FormatError输入了非error的类型: %v", err))
 	}
 	return sb.String()
 }
@@ -71,6 +71,7 @@ func formatErrorOne(sb SB, err error, level uint) {
 		formatStack(sb, strace, level)
 	} else {
 		sb.WriteLine("  - %s缺少栈信息%s", CSI.Fore|CSI.Yellow, CSI.Fore.ToReset())
+		formatStack(sb, stacktrace.CaptureStackTrace(0, 0), level)
 	}
 	sb.NewLine()
 }

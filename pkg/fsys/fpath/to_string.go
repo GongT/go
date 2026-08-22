@@ -1,6 +1,11 @@
 package fpath
 
-import "path/filepath"
+import (
+	"os"
+	"path/filepath"
+
+	"github.com/gongt/go/pkg/fsys/fpath/internal"
+)
 
 type PathLike interface {
 	*Path | *IPath | string
@@ -9,17 +14,19 @@ type PathLikeRo interface {
 	*IPath | string
 }
 
-func ToString[T PathLike](input T) string {
+func ToString[T PathLike](input T) (r string) {
 	switch v := any(input).(type) {
 	case *Path:
-		return v.String()
+		r = v.String()
 	case *IPath:
-		return v.String()
+		r = v.String()
 	case string:
-		return v
+		r = v
 	default:
 		panic(PathErr.New("传入的类型必须是 *Path 或 *IPath 或 string"))
 	}
+	internal.AssertValidPath(r)
+	return
 }
 
 func ToPath[T PathLike](input T) *Path {
@@ -65,4 +72,29 @@ func toStringMustAbs[T PathLike](input T, base string) string {
 		t = filepath.Clean(t)
 	}
 	return t
+}
+
+func toStringAbsCwd2[T1 PathLike, T2 PathLike](a T1, b T2) (*Path, *Path) {
+	aPath := ToPath(a)
+	bPath := ToPath(b)
+
+	aAbs := aPath.IsAbs()
+	bAbs := bPath.IsAbs()
+
+	if aAbs && bAbs {
+		return aPath, bPath
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(PathErr.Wrap(err))
+	}
+
+	if aAbs && !bAbs {
+		return aPath, New(cwd + "/" + bPath.Raw())
+	}
+	if !aAbs && bAbs {
+		return New(cwd + "/" + aPath.Raw()), bPath
+	}
+	return New(cwd + "/" + aPath.Raw()), New(cwd + "/" + bPath.Raw())
 }

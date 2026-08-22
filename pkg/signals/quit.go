@@ -1,7 +1,6 @@
 package signals
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -35,9 +34,9 @@ func (h *quitHandler) MainFinish() {
 	close(h.ch)
 
 	if h.codeSet {
-		if myenv.StderrIsTerminal {
-			fmt.Fprintln(os.Stderr, "bye, bye~")
-		}
+		// if myenv.StderrIsTerminal {
+		// 	fmt.Fprintln(os.Stderr, "bye, bye~")
+		// }
 
 		os.Exit(h.exitCode)
 	} else {

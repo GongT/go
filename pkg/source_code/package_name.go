@@ -1,8 +1,6 @@
 package sourcecode
 
 import (
-	"go/ast"
-	"go/parser"
 	"os"
 	"path"
 	"regexp"
@@ -37,6 +35,8 @@ func DetectPackageName(folderPath string) (string, error) {
 }
 
 // 遍历指定目录下的所有Go文件（不递归），收集它们的包名，返回列表。
+//
+// 如果没有Go文件，则返回目录名作为包名。返回列表不可能为空。
 func DetectPackageNames(folderPath string, ignore func(string) bool) ([]string, error) {
 	entries, err := os.ReadDir(folderPath)
 	if err != nil {
@@ -65,13 +65,10 @@ func DetectPackageNames(folderPath string, ignore func(string) bool) ([]string, 
 	for _, file := range goFiles {
 		filePath := path.Join(folderPath, file.Name())
 
-		var ast *ast.File
-		ast, err = ReadSourceFile(filePath, parser.PackageClauseOnly)
+		name, err := NewPackageReader().GetPackageName(filePath)
 		if err != nil {
 			return nil, err
 		}
-
-		name := ast.Name.Name
 
 		results.Insert(name)
 	}

@@ -1,4 +1,4 @@
-// @export
+// @exported
 package internal
 
 import (
@@ -37,6 +37,7 @@ type Detailer interface {
 	Details() map[string]any
 }
 
+// @private
 type E interface {
 	error
 	Detailer
@@ -63,6 +64,7 @@ type AlsoBe interface {
 	AlsoBe(error) EE
 }
 
+// @private
 type EE interface {
 	E
 	DetailerWriter

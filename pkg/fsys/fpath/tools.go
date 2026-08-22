@@ -7,6 +7,10 @@ import (
 	"github.com/gongt/go/internal/myenv"
 )
 
+func Clean[T PathLike](p T) *Path {
+	return New(filepath.ToSlash(filepath.Clean(ToString(p))))
+}
+
 // 判断what是否在container目录下
 //   - 虽然what支持相对路径，但最好不要这样，因为基于container而非cwd，后续的路径操作可能会产生意外结果
 //   - container必须是绝对路径
@@ -64,4 +68,38 @@ func MustRelative[T1 PathLike, T2 PathLike](what T1, container T2) string {
 	} else {
 		return s
 	}
+}
+
+// 判断两个路径是否逻辑相等
+//
+// 自动基于cwd转换为绝对路径
+func IsEquals[T1 PathLike, T2 PathLike](a_ T1, b_ T2) bool {
+	a, b := toStringAbsCwd2(a_, b_)
+
+	if a.value == b.value {
+		return true
+	}
+
+	if myenv.IsWindows {
+		a.value = strings.ToLower(a.value)
+		b.value = strings.ToLower(b.value)
+	}
+
+	return a.Normalize().Raw() == b.Normalize().Raw()
+}
+
+// 判断两个路径是否实际相同
+//
+// 自动基于cwd转换为绝对路径
+func IsSameEntity[T1 PathLike, T2 PathLike](a_ T1, b_ T2) bool {
+	a, b := toStringAbsCwd2(a_, b_)
+
+	if a.value == b.value {
+		return true
+	}
+
+	a.RealpathMissing()
+	b.RealpathMissing()
+
+	return a.Raw() == b.Raw()
 }

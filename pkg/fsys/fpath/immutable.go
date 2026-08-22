@@ -60,6 +60,9 @@ func (ip *IPath) ResolveWith(target rawer) *IPath {
 func (ip *IPath) Dir() *IPath {
 	return &IPath{value: ip.value.Clone().Dir()}
 }
+func (ip *IPath) Parent() *IPath {
+	return &IPath{value: ip.value.Clone().Parent()}
+}
 func (ip *IPath) SetDir(dir rawer) *IPath {
 	return &IPath{value: ip.value.Clone().SetDir(dir)}
 }

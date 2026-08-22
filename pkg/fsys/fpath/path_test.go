@@ -59,7 +59,7 @@ func TestPath(t *testing.T) {
 
 		r := New("/")
 		assert.Equal(t, true, r.IsRoot())
-		r.Dir()
+		r.Parent()
 		assert.Equal(t, "/", r.String())
 	})
 

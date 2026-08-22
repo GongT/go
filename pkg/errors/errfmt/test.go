@@ -43,6 +43,6 @@ func Panic(err error) {
 	if strace := errors.GetStackTrace(err); len(strace) > 0 {
 		panic(&panicBox{err})
 	} else {
-		panic(err)
+		panic(errors.Extend(err, "panic"))
 	}
 }

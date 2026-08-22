@@ -150,13 +150,13 @@ func (p *Path) ResolveWith(target rawer) *Path {
 }
 
 // 上一级目录 = Join("..")
-func (p *Path) Dir() *Path {
+func (p *Path) Parent() *Path {
 	p.push("..")
 	return p
 }
 
 // 逻辑上级目录 [path.Dir] 在路径中有符号链接的时候，有些非常特殊的情况会产生错误路径
-func (p *Path) LogicalDir() *Path {
+func (p *Path) Dir() *Path {
 	pos := strings.LastIndexByte(p.value, '/')
 	if pos > 0 {
 		p.replace(p.value[:pos])
