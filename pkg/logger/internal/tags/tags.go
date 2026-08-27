@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	striter "github.com/gongt/go/pkg/string_helper/iterator"
+	striter "github.com/gongt/go/pkg/strings/iterator"
 )
 
 type DebugTag = string

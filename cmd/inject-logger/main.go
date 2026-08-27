@@ -2,11 +2,9 @@ package main
 
 import (
 	"fmt"
-	"path"
 	"strings"
 
 	"github.com/gongt/go/internal/myenv"
-	"github.com/gongt/go/pkg/errors"
 	"github.com/gongt/go/pkg/fsys"
 	"github.com/gongt/go/pkg/fsys/fpath"
 	"github.com/gongt/go/pkg/signals"
@@ -23,40 +21,33 @@ type Options struct {
 func main() {
 	defer signals.AppQuit.Finalize()
 
-	env := myenv.Must(codegen.CreateEnvironment("github.com/gongt/go/cmd/inject-logger", MAGIC_STRING))
+	env := myenv.Must1(codegen.CreateEnvironment("github.com/gongt/go/cmd/inject-logger", MAGIC_STRING))
 
 	opts := &Options{}
-	myenv.MustNil(env.ParseArgs(opts))
+	myenv.Must(env.ParseArgs(opts))
 
-	if len(env.Args) > 0 {
-		panic(errors.NewAnonymous("unexpected arguments").WithDetails("args", env.Args))
-	}
+	myenv.Must(env.NoMoreArgs())
 
-	outputDir := path.Dir(env.InputFile)
+	outputDir := env.InputPath().Dir()
 	outputBuffer := sourcecode.NewGoFileBuffer()
 
-	fileWriter := myenv.Must(env.NewOutput(env.InputFile, outputBuffer))
+	fileWriter := myenv.Must1(env.NewOutput(env.InputPath().Raw(), outputBuffer))
 
-	goMod := myenv.Must(env.FindGoMod())
-	if !fpath.IsLocal(outputDir, goMod.Dir()) {
-		panic(errors.NewAnonymous("输出文件不在项目内").WithDetails("outputDir", outputDir, "projectDir", goMod.Dir()))
-	}
-
-	pkgName := myenv.Must(sourcecode.DetectPackageName(outputDir))
+	pkgName := myenv.Must1(sourcecode.DetectPackageName(outputDir))
 	outputBuffer.SetPackageName(pkgName)
 
 	var gArgs []string
 	if opts.TagPrefix != "" {
 		gArgs = append(gArgs, fmt.Sprintf("--prefix=%q", opts.TagPrefix))
 	}
-	codegen.WriteGeneratorComment(outputBuffer.Heading(), env.GeneratorFullName, gArgs)
+	codegen.WriteGeneratorComment(outputBuffer.Heading(), env.GeneratorName(), gArgs)
 
 	// 查找父目录，通过package名称组装日志tag
 	ignoreSelf := func(ent string) bool {
 		if sourcecode.SimulateGolangBuild(ent) {
 			return true
 		}
-		if ent == path.Base(env.InputFile) {
+		if ent == env.InputPath().Base().Name {
 			return true
 		}
 		return false
@@ -64,14 +55,14 @@ func main() {
 	names := []string{}
 	for dir := range fsys.ClimbingPath(outputDir) {
 		var ignore func(string) bool = nil
-		if dir.Raw() == outputDir {
+		if fpath.IsEquals(dir, outputDir) {
 			ignore = ignoreSelf
 		}
-		if fpath.IsEquals(dir, goMod.Dir()) {
+		if fpath.IsEquals(dir, env.WorkspaceRoot()) {
 			break
 		}
 
-		package_declarations := myenv.Must(sourcecode.DetectPackageNames(dir.Raw(), ignore))
+		package_declarations := myenv.Must1(sourcecode.DetectPackageNames(dir.Raw(), ignore))
 		names = append([]string{package_declarations[0]}, names...)
 	}
 
@@ -103,7 +94,7 @@ func printf(fmt string, args ...any) {
 var _ = printf
 `, loggerPkg, loggerPkg, loggerPkg, loggerPkg))
 
-	myenv.MustNil(fileWriter.WriteFile())
+	myenv.Must(fileWriter.WriteFile())
 
 	signals.AppQuit.Set(0)
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gongt/go/pkg/errors"
+	"github.com/gongt/go/pkg/fsys/fpath"
 	"github.com/hashicorp/go-set/v3"
 )
 
@@ -23,8 +24,22 @@ func SimulateGolangBuild(f string) bool {
 }
 
 // 检测指定目录的包名
-func DetectPackageName(folderPath string) (string, error) {
+func DetectPackageName[T fpath.PathLike](folderPath T) (string, error) {
 	entries, err := DetectPackageNames(folderPath, SimulateGolangBuild)
+	if err != nil {
+		return "", err
+	}
+	if len(entries) == 1 {
+		return entries[0], nil
+	}
+	return "", errors.NewAnonymous("目录中包名不一致").WithDetails("path", folderPath, "packageNames", entries)
+}
+
+// 检测指定目录的包名，不包含指定文件
+func DetectPackageNameExcept[T fpath.PathLike](folderPath T, basename string) (string, error) {
+	entries, err := DetectPackageNames(folderPath, func(f string) bool {
+		return SimulateGolangBuild(f) || f == basename
+	})
 	if err != nil {
 		return "", err
 	}
@@ -37,10 +52,14 @@ func DetectPackageName(folderPath string) (string, error) {
 // 遍历指定目录下的所有Go文件（不递归），收集它们的包名，返回列表。
 //
 // 如果没有Go文件，则返回目录名作为包名。返回列表不可能为空。
-func DetectPackageNames(folderPath string, ignore func(string) bool) ([]string, error) {
-	entries, err := os.ReadDir(folderPath)
+//
+// ignore 参数用于指定要忽略的文件，参数是文件的basename
+func DetectPackageNames[T fpath.PathLike](folderPath T, ignore func(string) bool) ([]string, error) {
+	iPath := fpath.ToImmutable(folderPath)
+
+	entries, err := os.ReadDir(iPath.Raw())
 	if err != nil {
-		return nil, errors.Extend(err, "无法读取文件夹").WithDetails("path", folderPath)
+		return nil, errors.Extend(err, "无法读取文件夹").WithDetails("path", iPath)
 	}
 	var goFiles []os.DirEntry
 	for _, entry := range entries {
@@ -57,17 +76,20 @@ func DetectPackageNames(folderPath string, ignore func(string) bool) ([]string, 
 	}
 
 	if len(goFiles) == 0 {
-		return []string{normalize(path.Base(folderPath))}, nil
+		return []string{normalize(iPath.Base().Name)}, nil
 	}
 
 	var results = set.New[string](2)
 
 	for _, file := range goFiles {
-		filePath := path.Join(folderPath, file.Name())
+		filePath := iPath.Join(file.Name())
 
-		name, err := NewPackageReader().GetPackageName(filePath)
+		name, err := NewPackageReader().GetPackageName(filePath.Raw())
 		if err != nil {
 			return nil, err
+		}
+		if name == "" {
+			continue
 		}
 
 		results.Insert(name)

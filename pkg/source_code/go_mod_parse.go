@@ -14,7 +14,7 @@ import (
 
 type GoModFile struct {
 	// Path to the go.mod file
-	Path       *fpath.IPath
+	Path       fpath.IPath
 	content    []byte
 	moduleName string
 }
@@ -30,7 +30,7 @@ func FindGoMod[T fpath.PathLike](fromPath T) (*GoModFile, error) {
 
 func OpenGoMod[T fpath.PathLike](filePath T) *GoModFile {
 	return &GoModFile{
-		Path: fpath.ToImmutable(filePath),
+		Path: *fpath.ToImmutable(filePath),
 	}
 }
 
@@ -66,7 +66,7 @@ func (g *GoModFile) GetModuleName() (string, error) {
 }
 
 // 给定一个文件路径，计算它的绝对导入路径（import path）
-func (g *GoModFile) CalculateImportPath(filePath string) (string, error) {
+func (g *GoModFile) CalculateImportPath[T fpath.PathLike](filePath T) (string, error) {
 	relativePath, err := fpath.ToRelative(filePath, g.Dir())
 	if err != nil {
 		return "", errors.Extend(err, "无法计算相对路径").WithDetails("base", path.Dir(g.Path.Raw()), "target", filePath)

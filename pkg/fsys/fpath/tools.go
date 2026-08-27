@@ -1,6 +1,7 @@
 package fpath
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -62,9 +63,27 @@ func ToRelative[T1 PathLike, T2 PathLike](what_a T1, container_a T2) (string, er
 	return rel, nil
 }
 
+// [ToRelative]的Must版本，失败时直接panic
 func MustRelative[T1 PathLike, T2 PathLike](what T1, container T2) string {
 	if s, err := ToRelative(what, container); err != nil {
 		panic(PathErr.Wrap(err).WithDetails("what", what, "container", container))
+	} else {
+		return s
+	}
+}
+
+// ToCwdRelative 将what相对于当前工作目录的路径返回
+func ToCwdRelative[T PathLike](p T) (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", PathErr.Wrap(err)
+	}
+	return ToRelative(p, cwd)
+}
+
+func MustCwdRelative[T PathLike](p T) string {
+	if s, err := ToCwdRelative(p); err != nil {
+		panic(PathErr.Wrap(err).WithDetails("path", p))
 	} else {
 		return s
 	}

@@ -1,4 +1,4 @@
-package codegen
+package cgen
 
 import (
 	"bytes"
@@ -9,17 +9,16 @@ import (
 
 	"github.com/gongt/go/pkg/errors"
 	"github.com/gongt/go/pkg/fsys/fpath"
+	"github.com/gongt/go/pkg/interfaces"
+	sourcecode "github.com/gongt/go/pkg/source_code"
+	"github.com/gongt/go/pkg/source_code/internal/writer"
 	"github.com/gongt/go/pkg/terminal"
 )
-
-type toBytes interface {
-	Bytes() []byte
-}
 
 type SafeTextWriter struct {
 	path    *fpath.IPath
 	magic   []byte
-	content toBytes
+	content interfaces.ToBytes
 
 	// 判断回调，当文件存在且不包含magic时，调用此函数判断是否安全覆盖，默认直接返回false
 	//
@@ -30,13 +29,31 @@ type SafeTextWriter struct {
 	prepared bool
 }
 
-func NewTextWriter(path string, magicBytes []byte, content toBytes) *SafeTextWriter {
+func NewTextWriter[T fpath.PathLike](path T, magicBytes []byte, content interfaces.ToBytes) *SafeTextWriter {
 	r := &SafeTextWriter{
-		path:    fpath.INew(path),
+		path:    fpath.ToImmutable(path),
 		magic:   magicBytes,
 		content: content,
 	}
 	return r
+}
+
+func (w *SafeTextWriter) IsGoFile() bool {
+	_, ok := w.content.(writer.GoFileBuffer)
+	return ok
+}
+
+func (w *SafeTextWriter) LearnPackageName() error {
+	if buff, ok := w.content.(writer.GoFileBuffer); ok {
+		pkgName, err := sourcecode.DetectPackageNameExcept(w.path.Dir(), w.path.Base().Name)
+		if err != nil {
+			return err
+		}
+		buff.SetPackageName(pkgName)
+	} else {
+		return errors.NewAnonymous("内容不是Go文件缓冲区")
+	}
+	return nil
 }
 
 func (w *SafeTextWriter) Path() string {

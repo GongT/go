@@ -1,4 +1,4 @@
-package syscall_helpers
+package syscalls
 
 import (
 	"syscall"

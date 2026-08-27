@@ -1,7 +1,6 @@
 package fpath
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -118,16 +117,10 @@ func (p *Path) IsRoot() bool {
 }
 
 // 推入路径片段
-func (p *Path) Join(others ...string) *Path {
+func (p *Path) Join[T pathOrFileLike](others ...T) *Path {
 	for _, other := range others {
-		p.push(other)
+		p.push(ToString(other))
 	}
-	return p
-}
-
-// 推入路径片段
-func (p *Path) JoinWith(target rawer) *Path {
-	p.push(target.Raw())
 	return p
 }
 
@@ -156,6 +149,8 @@ func (p *Path) Parent() *Path {
 }
 
 // 逻辑上级目录 [path.Dir] 在路径中有符号链接的时候，有些非常特殊的情况会产生错误路径
+//
+// 建议只在此路径表示一个文件时使用它获取目录
 func (p *Path) Dir() *Path {
 	pos := strings.LastIndexByte(p.value, '/')
 	if pos > 0 {
@@ -169,46 +164,28 @@ func (p *Path) Dir() *Path {
 }
 
 // 修改目录，保留文件名
-func (p *Path) SetDir(dir any) *Path {
-	var d string
-	if s, ok := dir.(string); ok {
-		d = s
-	} else if pObj, ok := dir.(rawer); ok {
-		d = pObj.Raw()
-	} else if pObj, ok := dir.(fmt.Stringer); ok {
-		d = pObj.String()
-	} else {
-		panic(fmt.Sprintf("SetDir: unsupported type %T", dir))
-	}
-
+func (p *Path) SetDir[T PathLike](dir T) *Path {
+	d := ToString(dir)
 	internal.AssertValidPath(d)
 	p.replace(d + "/" + filepath.Base(p.value))
 	return p
 }
 
 // 各种获取路径的函数
+//
+// 修改返回的对象不会影响当前路径对象
 func (p *Path) Base() *File {
 	return NewFile(filepath.Base(p.value))
 }
 
-// 替换文件名 就是 Join("..", suffix)
-func (p *Path) SetBase(suffix any) *Path {
-	var suffixStr string
-	if s, ok := suffix.(string); ok {
-		suffixStr = s
-	} else if f, ok := suffix.(*File); ok {
-		suffixStr = f.Name
-	} else if f, ok := suffix.(rawer); ok {
-		suffixStr = filepath.Base(f.Raw())
-	} else if f, ok := suffix.(fmt.Stringer); ok {
-		suffixStr = filepath.Base(f.String())
-	} else {
-		panic(fmt.Sprintf("SetBase: unsupported type %T", suffix))
-	}
-
+// 替换文件名 就是 .Dir().Join(suffix)
+func (p *Path) SetBase[T fileLike](suffix T) *Path {
+	suffixStr := ToString(suffix)
 	p.Dir().Join(suffixStr)
 	return p
 }
+
+// deprecated: 改为 [Path.SetBase]
 func (p *Path) SetFilename(suffix string) *Path {
 	p.Dir().Join(suffix)
 	return p

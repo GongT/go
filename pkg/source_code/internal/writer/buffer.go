@@ -7,13 +7,16 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gongt/go/pkg/string_helper/strtools"
-	writercache "github.com/gongt/go/pkg/string_helper/writer_cache"
+	"github.com/gongt/go/pkg/strings/strtools"
+	writercache "github.com/gongt/go/pkg/strings/writer_cache"
 )
 
-var _ writercache.AllWriter = (*GoFileBuffer)(nil)
+var _ writercache.AllWriter = (GoFileBuffer)(nil)
 
-type GoFileBuffer struct {
+// GoFileBuffer 通过拼接字符串创建一个Go语言文件
+type GoFileBuffer = *goFileBuffer
+
+type goFileBuffer struct {
 	writercache.WriteEvent
 
 	buff bytes.Buffer
@@ -25,9 +28,8 @@ type GoFileBuffer struct {
 	formatted []byte
 }
 
-// NewGoFileBuffer 通过拼接字符串创建一个Go语言文件
-func NewGoFileBuffer() *GoFileBuffer {
-	r := &GoFileBuffer{
+func NewGoFileBuffer() GoFileBuffer {
+	r := &goFileBuffer{
 		imports: make(map[string]string),
 	}
 	r.buff.Grow(10240)
@@ -37,7 +39,7 @@ func NewGoFileBuffer() *GoFileBuffer {
 	return r
 }
 
-func (c *GoFileBuffer) AddImport(pkgPath string) string {
+func (c GoFileBuffer) AddImport(pkgPath string) string {
 	alias, exists := c.imports[pkgPath]
 	if !exists {
 		c.imports[pkgPath] = strtools.TinyHash(pkgPath)
@@ -47,20 +49,20 @@ func (c *GoFileBuffer) AddImport(pkgPath string) string {
 }
 
 // SetHeading 设置文件头部注释，通常用于添加版权信息或生成标记
-func (c *GoFileBuffer) Heading() writercache.AllWriter {
+func (c GoFileBuffer) Heading() writercache.AllWriter {
 	return writercache.New(&c.header, c.invalidateCache)
 }
 
 // SetPackageName 设置Go文件的包名，不设置会出错
-func (c *GoFileBuffer) SetPackageName(packageName string) {
+func (c GoFileBuffer) SetPackageName(packageName string) {
 	c.packageName = packageName
 }
 
-func (c *GoFileBuffer) Body() writercache.AllWriter {
+func (c GoFileBuffer) Body() writercache.AllWriter {
 	return c
 }
 
-func (c *GoFileBuffer) finalize() {
+func (c GoFileBuffer) finalize() {
 	buff := &bytes.Buffer{}
 
 	// heading
@@ -119,17 +121,17 @@ func (c *GoFileBuffer) finalize() {
 	c.formatted = src
 }
 
-func (c *GoFileBuffer) Bytes() []byte {
+func (c GoFileBuffer) Bytes() []byte {
 	if c.formatted == nil {
 		c.finalize()
 	}
 	return c.formatted
 }
 
-func (c *GoFileBuffer) String() string {
+func (c GoFileBuffer) String() string {
 	return string(c.Bytes())
 }
 
-func (c *GoFileBuffer) invalidateCache() {
+func (c GoFileBuffer) invalidateCache() {
 	c.formatted = nil
 }

@@ -6,13 +6,10 @@ import (
 	"io"
 	"log"
 	"os"
-	"path"
-	"path/filepath"
 	"regexp"
 
 	"github.com/gongt/go/cmd/exports/internal"
 	"github.com/gongt/go/internal/myenv"
-	"github.com/gongt/go/pkg/fsys/fpath"
 	"github.com/gongt/go/pkg/signals"
 	sourcecode "github.com/gongt/go/pkg/source_code"
 	"github.com/gongt/go/pkg/source_code/codegen"
@@ -29,16 +26,17 @@ var allowFileName = regexp.MustCompile(`^exports(?:_(.+))?\.go$`)
 func main() {
 	defer signals.AppQuit.Finalize()
 
-	env := myenv.Must(codegen.CreateEnvironment("github.com/gongt/go/cmd/exports", MAGIC_STRING))
+	env := myenv.Must1(codegen.CreateEnvironment("github.com/gongt/go/cmd/exports", MAGIC_STRING))
 
-	if !allowFileName.MatchString(path.Base(env.InputFile)) {
+	if !allowFileName.MatchString(env.InputPath().Base().Name) {
 		panic(errors.New("此生成器仅支持在 exports_xxx.go 中使用"))
 	}
 
 	var opts Options
-	myenv.MustNil(env.ParseArgs(&opts))
+	myenv.Must(env.ParseArgs(&opts))
+	myenv.Must(env.NoMoreArgs())
 
-	internalDir, err := fpath.New(env.InputFile).SetFilename("internal").Immutable().RealpathExisting()
+	internalDir, err := env.InputPath().SetFilename("internal").RealpathExisting()
 
 	if err != nil {
 		panic(fmt.Errorf("无法找到 internal 目录: %w", err))
@@ -51,19 +49,19 @@ func main() {
 	if !opts.VerboseMode {
 		log.SetOutput(io.Discard)
 	}
-	bs := myenv.Must(internal.ParseFiles(internalDir))
+	bs := myenv.Must1(internal.ParseFiles(internalDir))
 	if !opts.VerboseMode {
 		log.SetOutput(os.Stderr)
 	}
 
-	pkgName := myenv.Must(sourcecode.DetectPackageName(filepath.Dir(env.InputFile)))
+	pkgName := myenv.Must1(sourcecode.DetectPackageName(env.InputPath().Dir().Raw()))
 	bs.SetPackageName(pkgName)
 
-	writer := myenv.Must(env.NewOutput(env.InputFile, bs))
+	writer := myenv.Must1(env.NewOutput(env.InputPath().Raw(), bs))
 
-	codegen.WriteGeneratorComment(bs.Heading(), env.GeneratorFullName, nil)
+	codegen.WriteGeneratorComment(bs.Heading(), env.GeneratorName(), nil)
 
-	myenv.MustNil(writer.WriteFile())
+	myenv.Must(writer.WriteFile())
 
 	signals.AppQuit.Set(0)
 }

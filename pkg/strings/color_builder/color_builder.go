@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	CSI "github.com/gongt/go/pkg/string_helper/csi"
-	"github.com/gongt/go/pkg/string_helper/padding_builder"
+	CSI "github.com/gongt/go/pkg/strings/csi"
+	"github.com/gongt/go/pkg/strings/padding_builder"
 )
 
 // 是一个支持切换颜色开关的字符串构建器，用于命令行输出

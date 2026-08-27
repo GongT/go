@@ -9,8 +9,8 @@ import (
 	"github.com/gongt/go/pkg/errors/internal"
 	"github.com/gongt/go/pkg/errors/internal/iterator"
 	"github.com/gongt/go/pkg/errors/stacktrace"
-	"github.com/gongt/go/pkg/string_helper/color_builder"
-	CSI "github.com/gongt/go/pkg/string_helper/csi"
+	"github.com/gongt/go/pkg/strings/color_builder"
+	CSI "github.com/gongt/go/pkg/strings/csi"
 )
 
 type SB = *color_builder.ColorBuilder

@@ -2,106 +2,136 @@ package codegen
 
 import (
 	"os"
-	"path/filepath"
 	"unsafe"
 
 	"github.com/gongt/go/pkg/errors"
+	"github.com/gongt/go/pkg/fsys"
 	"github.com/gongt/go/pkg/fsys/fpath"
+	"github.com/gongt/go/pkg/interfaces"
 	sourcecode "github.com/gongt/go/pkg/source_code"
-	"github.com/gongt/go/pkg/source_code/internal"
+	"github.com/gongt/go/pkg/source_code/internal/cgen"
 	"github.com/gongt/go/pkg/source_code/internal/writer"
+	"github.com/gongt/go/pkg/types"
 	"github.com/jessevdk/go-flags"
 )
 
-var _ internal.CodegenEnvironmentInterface = (*GeneratorEnvironment)(nil)
+type globalArgs struct {
+	InputFile string `long:"input" description:"Path to the input file" env:"GOFILE"`
+}
 
-type GeneratorEnvironment struct {
-	InputFile         string `long:"input" description:"Path to the input file" env:"GOFILE"`
-	Cwd               string
-	Args              []string
+type GeneratorEnvironment = *generatorEnvironment
+type generatorEnvironment struct {
+	InputFile    *fpath.IPath
+	contentCache []byte
+
+	Cwd           *fpath.IPath // 启动时的工作目录
+	workspaceRoot *fpath.IPath // 工作区根目录，go.mod所在目录
+
+	InitialArgs []string // 初始命令行参数
+	unusedArgs  []string // 从未使用的命令行参数
+
 	GeneratorFullName string // 工具执行方式，例如 "github.com/gongt/go/cmd/exports"
-	Magic             []byte // GUID
+	magicBytes        []byte // GUID
 	goMod             *sourcecode.GoModFile
 }
 
-func CreateEnvironment(myName string, magic string) (*GeneratorEnvironment, error) {
-	var ret = &GeneratorEnvironment{
+var CurrentGenerator GeneratorEnvironment
+
+func GetEnvironment() GeneratorEnvironment {
+	if CurrentGenerator == nil {
+		panic(errors.NewAnonymous("当前没有生成器环境"))
+	}
+	return CurrentGenerator
+}
+
+func CreateEnvironment(myName string, magic string) (GeneratorEnvironment, error) {
+	var ret = &generatorEnvironment{
 		GeneratorFullName: myName,
-		Magic:             unsafe.Slice(unsafe.StringData(magic), len(magic)),
+		magicBytes:        unsafe.Slice(unsafe.StringData(magic), len(magic)),
 	}
 
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, errors.Extend(err, "无法获取当前工作目录")
 	}
-	ret.Cwd = cwd
+	ret.Cwd = fpath.INew(cwd)
 
-	args, err := flags.NewParser(ret, flags.IgnoreUnknown).Parse()
+	opts := &globalArgs{}
+	args, err := flags.NewParser(opts, flags.IgnoreUnknown).Parse()
 	if err != nil {
 		return nil, errors.Extend(err, "无法解析命令行参数")
 	}
 
-	ret.Args = args
+	ret.InitialArgs = args
 
-	if ret.InputFile == "" {
-		return nil, errors.NewAnonymous("必须通过--input提供输入文件路径")
+	if opts.InputFile == "" {
+		return nil, errors.NewAnonymous("未发现GOFILE环境，必须通过--input提供输入文件路径")
 	}
 
-	f := fpath.New(ret.Cwd).Join(ret.InputFile)
-	err = f.RealpathExisting()
+	f := ret.Cwd.Resolve(opts.InputFile)
+	f, err = f.Realpath()
 	if err != nil {
 		return nil, err
 	}
+	ret.InputFile = f
 
-	ret.InputFile = f.Raw()
-	if stat, err := os.Stat(ret.InputFile); err != nil || stat.IsDir() {
-		if os.IsNotExist(err) {
-			// 允许不存在
-		} else {
-			return nil, errors.NewAnonymous("输入文件路径无效").WithDetails("path", ret.InputFile)
-		}
+	ret.goMod, err = sourcecode.FindGoMod(ret.InputFile)
+	if err != nil {
+		return nil, errors.Extend(err, "无法找到go.mod文件")
 	}
+	ret.workspaceRoot = ret.goMod.Dir()
 
-	return ret, nil
+	data, err := fsys.ReadFileOrEmpty(ret.InputFile)
+	if err != nil {
+		return nil, errors.Extend(err, "无法读取输入文件").WithDetails("path", ret.InputFile)
+	}
+	ret.contentCache = data
+
+	CurrentGenerator = ret
+	return CurrentGenerator, nil
 }
 
-func (env *GeneratorEnvironment) ReadAsString() (string, error) {
-	data, err := os.ReadFile(env.InputFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-		return "", errors.Extend(err, "无法读取输入文件").WithDetails("path", env.InputFile)
-	}
-	return string(data), nil
-}
+func (env GeneratorEnvironment) GeneratorName() string       { return env.GeneratorFullName }
+func (env GeneratorEnvironment) InputPath() *fpath.IPath     { return env.InputFile }
+func (env GeneratorEnvironment) InputPathRaw() string        { return env.InputFile.Raw() }
+func (env GeneratorEnvironment) InputContent() []byte        { return env.contentCache }
+func (env GeneratorEnvironment) Magic() []byte               { return env.magicBytes }
+func (env GeneratorEnvironment) WorkspaceRoot() *fpath.IPath { return env.workspaceRoot }
+func (env GeneratorEnvironment) UnusedArgs() []string        { return env.unusedArgs }
 
-func (env *GeneratorEnvironment) ParseArgs(output any) error {
-	args, err := flags.NewParser(output, flags.IgnoreUnknown).ParseArgs(env.Args)
-	if err != nil {
-		return errors.Extend(err, "无法解析命令行参数")
+func (env GeneratorEnvironment) NoMoreArgs() error {
+	un := env.UnusedArgs()
+	if len(un) > 0 {
+		panic(errors.NewAnonymous("未知命令行参数: %s", un[0]).WithDetails("args", un))
 	}
-	env.Args = args
 	return nil
 }
 
-func (env *GeneratorEnvironment) NewOutput(path string, content toBytes) (*SafeTextWriter, error) {
-	if filepath.IsAbs(path) {
-		mod, err := env.FindGoMod()
-		if err != nil {
-			return nil, errors.Extend(err, "无法查找go.mod文件")
-		}
-		if !fpath.IsLocal(path, mod.Dir()) {
-			return nil, errors.NewAnonymous("拒绝向项目外输出文件").WithDetails("path", path, "projectDir", mod.Dir())
+func (env GeneratorEnvironment) ParseArgs(output any) error {
+	unused, err := flags.NewParser(output, flags.IgnoreUnknown).ParseArgs(env.InitialArgs)
+	if err != nil {
+		return errors.Extend(err, "无法解析命令行参数")
+	}
+
+	types.IntersectInplace(&env.unusedArgs, unused)
+
+	return nil
+}
+
+func (env GeneratorEnvironment) NewOutput[T fpath.PathLike](ipath T, content interfaces.ToBytes) (*cgen.SafeTextWriter, error) {
+	path := fpath.ToImmutable(ipath)
+
+	if path.IsAbs() {
+		if !fpath.IsLocal(path, env.workspaceRoot) {
+			return nil, errors.NewAnonymous("拒绝向项目外输出文件").WithDetails("path", path, "projectDir", env.workspaceRoot)
 		}
 	} else {
-		path = filepath.Join(env.Cwd, path)
+		path = env.Cwd.Join(path)
 	}
-	f := fpath.New(path)
 
-	r := NewTextWriter(f.Raw(), []byte(env.Magic), content)
+	r := cgen.NewTextWriter(path, env.magicBytes, content)
 
-	if buffer, ok := content.(*writer.GoFileBuffer); ok {
+	if buffer, ok := content.(writer.GoFileBuffer); ok {
 		buffer.Heading().WriteString(env.DoNotModify())
 	}
 
@@ -112,18 +142,15 @@ func (env *GeneratorEnvironment) NewOutput(path string, content toBytes) (*SafeT
 	return r, nil
 }
 
-func (env *GeneratorEnvironment) DoNotModify() string {
-	return internal.CreateSafeGuardComment(env.Magic, env.GeneratorFullName)
+func (env GeneratorEnvironment) DoNotModify() string {
+	return cgen.CreateSafeGuardComment(env.magicBytes, env.GeneratorFullName)
 }
 
-func (env *GeneratorEnvironment) FindGoMod() (*sourcecode.GoModFile, error) {
+func (env GeneratorEnvironment) GoMod() *sourcecode.GoModFile {
 	if env.goMod != nil {
-		return env.goMod, nil
+		return env.goMod
 	}
-	modFile, err := sourcecode.FindGoMod(env.Cwd)
-	if err != nil {
-		return nil, err
-	}
+	modFile := sourcecode.OpenGoMod(env.workspaceRoot.Join("go.mod"))
 	env.goMod = modFile
-	return modFile, nil
+	return modFile
 }

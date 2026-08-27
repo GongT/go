@@ -5,6 +5,7 @@ import (
 	"io"
 )
 
+// WriteGeneratorComment 把当前生成器的go:generate注释写入到writer中
 func WriteGeneratorComment(writer io.Writer, generatorName string, arguments []string) {
 	fmt.Fprintf(writer, "//go:generate go run %s", generatorName)
 	for _, arg := range arguments {

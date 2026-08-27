@@ -3,9 +3,11 @@ package strtools
 import (
 	"hash/fnv"
 	"io"
+
+	"github.com/gongt/go/pkg/interfaces"
 )
 
-func TinyHash(content string) string {
+func TinyHash[T interfaces.ByteSeq](content T) string {
 	h := fnv.New64a()
 	h.Write([]byte(content))
 	return Base52Encode(h.Sum64())

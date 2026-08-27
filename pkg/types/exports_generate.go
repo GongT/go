@@ -9,6 +9,7 @@ import (
 	cdQnIBqUXCFY "github.com/gongt/go/pkg/types/internal/collection"
 	bDZGGWjLvIrw "github.com/gongt/go/pkg/types/internal/config_loader"
 	bHWoyPpYVbah "github.com/gongt/go/pkg/types/internal/sets"
+	bFmCwXUFsYSf "github.com/gongt/go/pkg/types/internal/slices"
 )
 
 // Collection 任意类型指针的可重复的集合
@@ -26,3 +27,22 @@ type Set[T comparable] = bHWoyPpYVbah.Set[T]
 
 // SharedSet 线程安全的 [Set]
 type SharedSet[T comparable] = bHWoyPpYVbah.SharedSet[T]
+
+// MapOf 生成一个map，key为keys中的元素，value为value
+func MapOf[K comparable, V any](arg1 []K, arg2 V) map[K]V {
+	return bFmCwXUFsYSf.MapOf(arg1, arg2)
+}
+
+// EmptyMapOf 生成一个map，key为keys中的元素，value为struct{}{}
+func EmptyMapOf[K comparable](arg1 []K) map[K]struct{} {
+	return bFmCwXUFsYSf.EmptyMapOf(arg1)
+}
+
+// IntersectInplace 将a中不存在于b的元素移除，即a和b的交集
+//
+// # 修改a的内容
+//
+// 重复元素会被移除
+func IntersectInplace[T comparable](arg1 *[]T, arg2 []T) {
+	bFmCwXUFsYSf.IntersectInplace(arg1, arg2)
+}

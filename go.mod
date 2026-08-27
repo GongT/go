@@ -2,7 +2,7 @@ module github.com/gongt/go
 
 replace github.com/gongt/go => .
 
-go 1.26.3
+go 1.27.0
 
 require (
 	github.com/goforj/godump v1.9.1
@@ -18,6 +18,7 @@ require (
 )
 
 require (
+	github.com/Microsoft/go-winio v0.6.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 )

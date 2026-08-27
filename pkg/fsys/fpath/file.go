@@ -6,6 +6,7 @@ import (
 	"github.com/gongt/go/internal/myenv"
 )
 
+// File 表示一个文件名（不包括路径），它是一个不可变对象，不要修改Name字段的值
 type File struct {
 	Name string
 }

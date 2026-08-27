@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"log"
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -19,10 +20,11 @@ type FileInfo = reader.FileInfo
 type PackageInfo = reader.PackageInfo
 
 type PackageReader struct {
-	Mode       parser.Mode
-	Recursive  bool
-	Testing    bool
-	BuildFlags []string
+	Mode              parser.Mode
+	Recursive         bool
+	Testing           bool
+	BuildFlags        []string
+	IgnoreSyntaxError bool // 是否忽略语法错误，默认false
 }
 
 func NewPackageReader() *PackageReader {
@@ -48,11 +50,18 @@ func (p *PackageReader) GetModuleName(dir string) (string, error) {
 }
 
 // GetPackageName 从文件中读出 “package xxx” 语句
+//
+// 如果文件不存在，返回错误。
+// 如果有语法错误等问题导致无法解析，返回空字符串而非错误。
 func (p *PackageReader) GetPackageName(filePath string) (string, error) {
 	fSet := token.NewFileSet()
-	astFile, err := parser.ParseFile(fSet, filePath, nil, parser.PackageClauseOnly)
+	buff, err := os.ReadFile(filePath)
 	if err != nil {
-		return "", errors.Extend(err, "文件解析失败").WithDetails("filePath", filePath)
+		return "", errors.Extend(err, "无法读取文件").WithDetails("path", filePath)
+	}
+	astFile, _ := parser.ParseFile(fSet, filePath, buff, parser.PackageClauseOnly)
+	if astFile == nil || astFile.Name == nil {
+		return "", nil
 	}
 	return astFile.Name.Name, nil
 }
@@ -62,7 +71,7 @@ func (p *PackageReader) ParseFileAst(filePath string) (*ast.File, error) {
 	fSet := token.NewFileSet()
 	astFile, err := parser.ParseFile(fSet, filePath, nil, p.Mode)
 	if err != nil {
-		return nil, errors.Extend(err, "文件解析失败").WithDetails("filePath", filePath)
+		return nil, errors.Extend(err, "文件解析失败").WithDetails("path", filePath)
 	}
 	return astFile, nil
 }
@@ -98,7 +107,13 @@ func (p *PackageReader) callLoad(dir string, mode packages.LoadMode) ([]*package
 			defer mu.Unlock()
 
 			contentMap[filename] = src
-			return parser.ParseFile(fset, filename, src, p.Mode)
+			ast, err := parser.ParseFile(fset, filename, src, p.Mode)
+			if err != nil && p.IgnoreSyntaxError {
+				err = nil
+			}
+
+			// 根据 golang.org/x/tools/go/packages/packages.go 中的parseFiles函数，ast可以为nil
+			return ast, err
 		},
 	}
 
