@@ -1,20 +1,22 @@
 package packer
 
 import (
+	"bytes"
 	"encoding/binary"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestPackThenUnpackNativeEndianValues(t *testing.T) {
-	packer := NewPack(binary.NativeEndian)
+func TestPackThenUnpack(t *testing.T) {
+	stream := bytes.Buffer{}
+
+	packer := NewPack(&stream, binary.LittleEndian)
 	values := struct {
 		uintValue    uint
 		uint64Value  uint64
 		uint32Value  uint32
 		uint16Value  uint16
-		byteValue    byte
 		boolValue    bool
 		uint8Value   uint8
 		intValue     int
@@ -31,7 +33,6 @@ func TestPackThenUnpackNativeEndianValues(t *testing.T) {
 		uint64Value:  0x1112131415161718,
 		uint32Value:  0x21222324,
 		uint16Value:  0x3132,
-		byteValue:    0x41,
 		boolValue:    true,
 		uint8Value:   0x42,
 		intValue:     -2,
@@ -49,7 +50,6 @@ func TestPackThenUnpackNativeEndianValues(t *testing.T) {
 	packer.WriteUint64(values.uint64Value)
 	packer.WriteUint32(values.uint32Value)
 	packer.WriteUint16(values.uint16Value)
-	packer.WriteByte(values.byteValue)
 	packer.WriteBool(values.boolValue)
 	packer.WriteUint8(values.uint8Value)
 	packer.WriteInt(values.intValue)
@@ -60,23 +60,22 @@ func TestPackThenUnpackNativeEndianValues(t *testing.T) {
 	packer.WriteFloat64(values.float64Value)
 	packer.WriteFloat32(values.float32Value)
 	packer.WriteString(values.text)
-	packer.Write(values.raw)
+	packer.WriteBytes(values.raw)
 
-	unpacker := NewUnpack(binary.NativeEndian, packer.Bytes())
+	unpacker := NewUnpack(binary.LittleEndian, stream.Bytes())
 	assert := func(name string, expected any, read func() (any, error)) {
 		t.Helper()
 		actual, err := read()
 		require.NoErrorf(t, err, "%s returned an error", name)
 		require.Equalf(t, expected, actual, "%s returned an unexpected value", name)
 	}
-	assert("NextUint", uint64(values.uintValue), func() (any, error) { return unpacker.NextUint() })
+	assert("NextUint", values.uintValue, func() (any, error) { return unpacker.NextUint() })
 	assert("NextUint64", values.uint64Value, func() (any, error) { return unpacker.NextUint64() })
 	assert("NextUint32", values.uint32Value, func() (any, error) { return unpacker.NextUint32() })
 	assert("NextUint16", values.uint16Value, func() (any, error) { return unpacker.NextUint16() })
-	assert("NextByte", values.byteValue, func() (any, error) { return unpacker.NextByte() })
 	assert("NextBool", values.boolValue, func() (any, error) { return unpacker.NextBool() })
 	assert("NextUint8", values.uint8Value, func() (any, error) { return unpacker.NextUint8() })
-	assert("NextInt", int64(values.intValue), func() (any, error) { return unpacker.NextInt() })
+	assert("NextInt", values.intValue, func() (any, error) { return unpacker.NextInt() })
 	assert("NextInt64", values.int64Value, func() (any, error) { return unpacker.NextInt64() })
 	assert("NextInt32", values.int32Value, func() (any, error) { return unpacker.NextInt32() })
 	assert("NextInt16", values.int16Value, func() (any, error) { return unpacker.NextInt16() })

@@ -6,3 +6,5 @@ go.sum
 
 # *_generate.go
 # *_generate_*.go
+
+.*.go

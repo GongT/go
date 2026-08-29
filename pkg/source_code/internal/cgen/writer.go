@@ -105,11 +105,11 @@ func (w *SafeTextWriter) ForceOverride() error {
 	defer fw.Close()
 
 	bytes := w.content.Bytes()
-	if _, err := fw.Write(bytes); err != nil {
+	if n, err := fw.Write(bytes); err != nil {
 		return errors.Extend(err, "文件写入错误").WithDetails("path", w.path.Raw())
+	} else {
+		log.Printf("写入%d字节，文件: %s", n, w.path.Raw())
 	}
-
-	log.Println("写入文件: ", w.path.Raw())
 
 	return nil
 }
@@ -121,6 +121,10 @@ func (w *SafeTextWriter) safeGuard() {
 			return
 		}
 		panic(err)
+	}
+
+	if len(content) == 0 {
+		return
 	}
 
 	if bytes.Contains(content, w.magic) {
@@ -141,7 +145,7 @@ func (w *SafeTextWriter) safeGuard() {
 }
 
 func (w *SafeTextWriter) ask() {
-	fmt.Printf("  文件 %s 已存在，且不是由此工具生成的。", w.path.Raw())
+	fmt.Printf("  文件 %s 已存在，且不是由此工具生成的。\n", w.path.Raw())
 	fmt.Println("  如果继续，文件将被覆盖，任何更改都将丢失。")
 	fmt.Print("  是否继续？ (y/n): ")
 

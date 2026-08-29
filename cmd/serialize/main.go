@@ -12,7 +12,7 @@ import (
 // Link our local declaration to the target private function
 // Format: //go:linkname [local_alias] [module_path]/[package].[private_func_name]
 //
-//go:linkname runMain github.com/gongt/go/pkg/serialize/internal/tools_bin/main.SerializeGeneratorMain
+//go:linkname runMain github.com/gongt/go/pkg/serialize/internal/tools_bin.SerializeGeneratorMain
 func runMain(codegen.GeneratorEnvironment)
 
 const MAGIC_STRING = "4a18ae49-5f26-43e3-b409-7b306174dd8c"

@@ -36,6 +36,7 @@ func (e *ErrorObjectBase) DetailsCreate() map[string]any {
 	return e.details
 }
 
+// WithDetails 为错误对象添加详细信息，接受键值对形式的参数。会修改错误对象本身。
 func (e *ErrorObjectBase) WithDetails(detail_pairs ...any) internal.EE {
 	if e == nil {
 		return nil

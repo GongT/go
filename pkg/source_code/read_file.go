@@ -77,19 +77,19 @@ func (p *PackageReader) ParseFileAst(filePath string) (*ast.File, error) {
 }
 
 // ReadFiles 读取一个目录下的所有go文件，返回文件信息，只有ast
-func (p *PackageReader) ReadFilesAst(dir string) (map[string]*FileInfo, error) {
+func (p *PackageReader) ReadFilesAst(dir string) (map[string]FileInfo, error) {
 	mode := packages.LoadFiles | packages.NeedSyntax
 	_, files, err := p.callLoad(dir, mode)
 	return files, err
 }
 
 // ReadFiles 读取一个目录下的所有go文件，返回文件信息，包括类型
-func (p *PackageReader) ReadFilesType(dir string) (map[string]*FileInfo, error) {
+func (p *PackageReader) ReadFilesType(dir string) (map[string]FileInfo, error) {
 	_, files, err := p.callLoad(dir, packages.LoadSyntax)
 	return files, err
 }
 
-func (p *PackageReader) callLoad(dir string, mode packages.LoadMode) ([]*packages.Package, map[string]*FileInfo, error) {
+func (p *PackageReader) callLoad(dir string, mode packages.LoadMode) ([]*packages.Package, map[string]FileInfo, error) {
 	if p.Testing {
 		mode |= packages.NeedForTest
 	}
@@ -127,7 +127,7 @@ func (p *PackageReader) callLoad(dir string, mode packages.LoadMode) ([]*package
 		return nil, nil, errors.Extend(err, "包解析失败").WithDetails("dir", dir)
 	}
 
-	result := make(map[string]*FileInfo)
+	result := make(map[string]FileInfo)
 	for pkg := range packages.Postorder(pkgs) {
 		if len(pkg.Errors) > 0 {
 			log.Printf("包%s解析失败:\n", pkg.ID)

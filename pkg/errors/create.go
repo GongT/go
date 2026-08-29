@@ -36,6 +36,11 @@ func NewTemplate(message string) *types.ErrorTemplate {
 	return types.CreateTemplate(message)
 }
 
+// NewT 是[NewTemplate]的别名
+func NewT(message string) *types.ErrorTemplate {
+	return types.CreateTemplate(message)
+}
+
 // 生成一个新的错误，带有栈信息
 //   - 第一个参数是一个error对象，通常是全局常量，可用于[errors.Is]判断
 //   - 此error的字符串将被用于[fmt.Sprintf]格式化

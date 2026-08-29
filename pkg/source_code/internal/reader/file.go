@@ -21,8 +21,8 @@ type FileInfo struct {
 	_package *PackageInfo
 }
 
-func NewFileInfo(ast *ast.File, fSet *token.FileSet, path string, content []byte, pkg *PackageInfo) *FileInfo {
-	return &FileInfo{
+func NewFileInfo(ast *ast.File, fSet *token.FileSet, path string, content []byte, pkg *PackageInfo) FileInfo {
+	return FileInfo{
 		File:     ast,
 		fSet:     fSet,
 		file:     fSet.File(ast.FileStart),

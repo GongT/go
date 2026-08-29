@@ -4,33 +4,26 @@ import (
 	"io"
 
 	"github.com/gongt/go/internal/myenv"
+	"github.com/gongt/go/pkg/interfaces"
 )
 
-type AllWriter interface {
-	io.Writer
-	io.StringWriter
-	io.ByteWriter
-
-	WriteRune(r rune) (n int, err error)
-}
-
-var _ AllWriter = (*WriteEvent)(nil)
+var _ interfaces.ModernWriter = (*WriteEvent)(nil)
 
 type WriteEvent struct {
-	target AllWriter
+	target interfaces.ModernWriter
 
 	onWrite func()
 	dirty   bool
 }
 
-func New(target AllWriter, onWrite func()) *WriteEvent {
+func New(target interfaces.ModernWriter, onWrite func()) *WriteEvent {
 	r := &WriteEvent{}
 	r.RouteTo(target, onWrite)
 	return r
 }
 
 // 重置缓存为干净状态
-func (cw *WriteEvent) RouteTo(target AllWriter, onWrite func()) {
+func (cw *WriteEvent) RouteTo(target interfaces.ModernWriter, onWrite func()) {
 	if cw.target != nil || cw.onWrite != nil {
 		panic("WriteEvent: RouteTo 只能调用一次")
 	}
@@ -40,31 +33,49 @@ func (cw *WriteEvent) RouteTo(target AllWriter, onWrite func()) {
 	cw.dirty = false
 }
 
+func (cw *WriteEvent) Close() {
+	cw.target = nil
+	cw.onWrite = nil
+	cw.dirty = false
+}
+
 // 重置缓存为干净状态
 func (cw *WriteEvent) Reset() {
 	cw.dirty = false
 }
 
-// Write implements [AllWriter].
+// Write implements [interfaces.ModernWriter].
 func (cw *WriteEvent) Write(p []byte) (n int, err error) {
+	if cw.target == nil {
+		return -1, io.EOF
+	}
 	cw.handleWrite()
 	return cw.target.Write(p)
 }
 
-// WriteByte implements [AllWriter].
+// WriteByte implements [interfaces.ModernWriter].
 func (cw *WriteEvent) WriteByte(c byte) error {
+	if cw.target == nil {
+		return io.EOF
+	}
 	cw.handleWrite()
 	return cw.target.WriteByte(c)
 }
 
-// WriteRune implements [AllWriter].
+// WriteRune implements [interfaces.ModernWriter].
 func (cw *WriteEvent) WriteRune(r rune) (n int, err error) {
+	if cw.target == nil {
+		return -1, io.EOF
+	}
 	cw.handleWrite()
 	return cw.target.WriteRune(r)
 }
 
-// WriteString implements [AllWriter].
+// WriteString implements [interfaces.ModernWriter].
 func (cw *WriteEvent) WriteString(s string) (n int, err error) {
+	if cw.target == nil {
+		return -1, io.EOF
+	}
 	cw.handleWrite()
 	return cw.target.WriteString(s)
 }

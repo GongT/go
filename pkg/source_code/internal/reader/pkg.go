@@ -1,6 +1,10 @@
 package reader
 
-import "golang.org/x/tools/go/packages"
+import (
+	"go/types"
+
+	"golang.org/x/tools/go/packages"
+)
 
 type PackageInfo struct {
 	pkg *packages.Package
@@ -25,4 +29,9 @@ func (p *PackageInfo) Name() string {
 // 包路径
 func (p *PackageInfo) Path() string {
 	return p.pkg.PkgPath
+}
+
+// TypesInfo 返回类型检查信息（需要 packages.NeedTypesInfo，[PackageReader.ReadFilesType]已包含）
+func (p *PackageInfo) TypesInfo() *types.Info {
+	return p.pkg.TypesInfo
 }

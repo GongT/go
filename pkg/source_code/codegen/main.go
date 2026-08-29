@@ -2,8 +2,10 @@ package codegen
 
 import (
 	"os"
+	"testing"
 	"unsafe"
 
+	"github.com/gongt/go/internal/myenv"
 	"github.com/gongt/go/pkg/errors"
 	"github.com/gongt/go/pkg/fsys"
 	"github.com/gongt/go/pkg/fsys/fpath"
@@ -44,6 +46,29 @@ func GetEnvironment() GeneratorEnvironment {
 	return CurrentGenerator
 }
 
+func TestingEnvironment(t *testing.T) GeneratorEnvironment {
+	cwd := fpath.INew(myenv.Must1(os.Getwd()))
+	ret := &generatorEnvironment{
+		GeneratorFullName: "testing",
+		magicBytes:        []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+		Cwd:               cwd,
+		InitialArgs:       []string{},
+		unusedArgs:        []string{},
+		InputFile:         cwd.Join("_virtual_input_file.go"),
+		contentCache:      []byte{},
+	}
+
+	var err error
+
+	ret.goMod, err = sourcecode.FindGoMod(cwd)
+	if err != nil {
+		panic(errors.Extend(err, "无法找到go.mod文件"))
+	}
+	ret.workspaceRoot = ret.goMod.Dir()
+
+	return ret
+}
+
 func CreateEnvironment(myName string, magic string) (GeneratorEnvironment, error) {
 	var ret = &generatorEnvironment{
 		GeneratorFullName: myName,
@@ -68,12 +93,12 @@ func CreateEnvironment(myName string, magic string) (GeneratorEnvironment, error
 		return nil, errors.NewAnonymous("未发现GOFILE环境，必须通过--input提供输入文件路径")
 	}
 
-	f := ret.Cwd.Resolve(opts.InputFile)
-	f, err = f.Realpath()
+	inFile := ret.Cwd.Resolve(opts.InputFile)
+	inFile, err = inFile.RealpathMissing()
 	if err != nil {
 		return nil, err
 	}
-	ret.InputFile = f
+	ret.InputFile = inFile
 
 	ret.goMod, err = sourcecode.FindGoMod(ret.InputFile)
 	if err != nil {
@@ -118,7 +143,7 @@ func (env GeneratorEnvironment) ParseArgs(output any) error {
 	return nil
 }
 
-func (env GeneratorEnvironment) NewOutput[T fpath.PathLike](ipath T, content interfaces.ToBytes) (*cgen.SafeTextWriter, error) {
+func (env *generatorEnvironment) NewOutput[T fpath.PathLike](ipath T, content interfaces.ToBytes) (*cgen.SafeTextWriter, error) {
 	path := fpath.ToImmutable(ipath)
 
 	if path.IsAbs() {

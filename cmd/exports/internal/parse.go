@@ -5,9 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 	"log"
-	"path"
 	"regexp"
-	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -15,9 +13,10 @@ import (
 	"github.com/gongt/go/pkg/fsys/fpath"
 	"github.com/gongt/go/pkg/iterator"
 	sourcecode "github.com/gongt/go/pkg/source_code"
+	"github.com/gongt/go/pkg/source_code/codegen"
 )
 
-func ParseFiles(dirPath *fpath.IPath) (sourcecode.GoFileBuffer, error) {
+func ParseFiles(env codegen.GeneratorEnvironment, dirPath *fpath.IPath) (sourcecode.GoFileBuffer, error) {
 	rdr := sourcecode.NewPackageReader()
 	rdr.Recursive = true
 
@@ -27,9 +26,16 @@ func ParseFiles(dirPath *fpath.IPath) (sourcecode.GoFileBuffer, error) {
 	}
 
 	fsb := sourcecode.NewGoFileBuffer()
+	fsb.NamePackage = sourcecode.IndexName
 
 	for _, content := range iterator.SortedMap(infoMap) {
+		if len(content.Decls) == 0 {
+			log.Printf("No declarations found in file: %s", content.Filename)
+			continue
+		}
+		fmt.Fprintf(fsb, "// - %s\n\n", fpath.MustRelative(content.Filename, env.WorkspaceRoot()))
 		ParseFile(fsb, content)
+		fsb.WriteString("\n\n")
 	}
 
 	return fsb, nil
@@ -43,17 +49,14 @@ const (
 	ForceExport
 )
 
-func ParseFile(sb sourcecode.GoFileBuffer, fileInfo *sourcecode.FileInfo) {
-	if len(fileInfo.Decls) == 0 {
-		log.Printf("No declarations found in file: %s", fileInfo.Filename)
-		return
-	}
-
+func ParseFile(sb sourcecode.GoFileBuffer, fileInfo sourcecode.FileInfo) {
 	log.Printf("Processing file: %s", fileInfo.Filename)
 	// log.Println(content.Package.Path())
 
 	defaultsExport := checkDefault(fileInfo)
 	log.Printf("  - defaults export? %v", defaultsExport)
+
+	var exportedCount int
 
 	for _, decl := range fileInfo.Decls {
 		switch decl := decl.(type) {
@@ -68,7 +71,7 @@ func ParseFile(sb sourcecode.GoFileBuffer, fileInfo *sourcecode.FileInfo) {
 				continue
 			}
 
-			emitFunc(sb, exportType, decl, fileInfo)
+			exportedCount += emitFunc(sb, exportType, decl, fileInfo)
 		case *ast.GenDecl: // Type declarations are represented as GenDecl in the AST
 			if decl.Tok == token.IMPORT {
 				// import - skip
@@ -85,10 +88,10 @@ func ParseFile(sb sourcecode.GoFileBuffer, fileInfo *sourcecode.FileInfo) {
 			for _, spec := range decl.Specs {
 				switch spec := spec.(type) {
 				case *ast.TypeSpec:
-					emitType(sb, exportType, spec, fileInfo, doc)
+					exportedCount += emitType(sb, exportType, spec, fileInfo, doc)
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
-						emitVar(sb, exportType, decl.Tok == token.VAR, name.Name, fileInfo, doc)
+						exportedCount += emitVar(sb, exportType, decl.Tok == token.VAR, name.Name, fileInfo, doc)
 					}
 				default:
 					log.Printf("Other spec type: %T", spec)
@@ -100,12 +103,17 @@ func ParseFile(sb sourcecode.GoFileBuffer, fileInfo *sourcecode.FileInfo) {
 	}
 }
 
-func emitVar(sb sourcecode.GoFileBuffer, exportType ExportType, isVar bool, symbol string, file *sourcecode.FileInfo, doc *ast.CommentGroup) {
+func emitVar(sb sourcecode.GoFileBuffer, exportType ExportType, isVar bool, symbol string, file sourcecode.FileInfo, doc *ast.CommentGroup) int {
 	exported := exportedName(symbol, exportType)
 	if exported == "" {
-		return
+		return 0
 	}
+
 	log.Printf("  - export variable %s", symbol)
+	if sb.AddExport(exported, nil) {
+		log.Printf("    ! duplicate, skip")
+		return 0
+	}
 
 	copyDoc(sb, doc)
 
@@ -117,11 +125,14 @@ func emitVar(sb sourcecode.GoFileBuffer, exportType ExportType, isVar bool, symb
 
 	sb.WriteString(exported)
 	sb.WriteString(" = ")
+	sb.WriteString(sb.AddImport(file.Container().Path()))
+	sb.WriteString(".")
 	sb.WriteString(symbol)
 	sb.WriteByte('\n')
+	return 1
 }
 
-func typeParams(sb sourcecode.GoFileBuffer, tp *ast.FieldList, file *sourcecode.FileInfo) string {
+func typeParams(sb sourcecode.GoFileBuffer, tp *ast.FieldList, file sourcecode.FileInfo) string {
 	if tp == nil {
 		return ""
 	}
@@ -149,12 +160,16 @@ func typeParams(sb sourcecode.GoFileBuffer, tp *ast.FieldList, file *sourcecode.
 	return "[" + strings.Join(arguments, ", ") + "]"
 }
 
-func emitFunc(sb sourcecode.GoFileBuffer, exportType ExportType, decl *ast.FuncDecl, file *sourcecode.FileInfo) {
+func emitFunc(sb sourcecode.GoFileBuffer, exportType ExportType, decl *ast.FuncDecl, file sourcecode.FileInfo) int {
 	exported := exportedName(decl.Name.Name, exportType)
 	if exported == "" {
-		return
+		return 0
 	}
 	log.Printf("  - export function %s", decl.Name.Name)
+	if sb.AddExport(exported, nil) {
+		log.Printf("    ! duplicate, skip")
+		return 0
+	}
 
 	copyDoc(sb, decl.Doc)
 	sb.WriteString("func ")
@@ -221,6 +236,7 @@ func emitFunc(sb sourcecode.GoFileBuffer, exportType ExportType, decl *ast.FuncD
 
 	printList(sb, recallArgList, '(')
 	sb.WriteString("\n}\n\n")
+	return 1
 }
 
 func printList(sb sourcecode.GoFileBuffer, list []string, quote byte) {
@@ -247,52 +263,24 @@ func printList(sb sourcecode.GoFileBuffer, list []string, quote byte) {
 	}
 }
 
-func renderNode(file *sourcecode.FileInfo, node ast.Node) string {
-	var rendered strings.Builder
-	file.CloneAt(&rendered, node.Pos(), node.End())
-	return rendered.String()
+func renderType(sb sourcecode.GoFileBuffer, file sourcecode.FileInfo, expr ast.Expr) string {
+	typ := file.Container().TypesInfo().TypeOf(expr)
+	tr := sourcecode.NewTypeResolver(sb)
+
+	return tr.QualifyType(typ)
 }
 
-func renderType(sb sourcecode.GoFileBuffer, file *sourcecode.FileInfo, expr ast.Expr) string {
-	if pointer, ok := expr.(*ast.StarExpr); ok {
-		return "*" + renderType(sb, file, pointer.X)
-	}
-	rendered := renderNode(file, expr)
-	var qualifier *ast.Ident
-	ast.Inspect(expr, func(node ast.Node) bool {
-		selector, ok := node.(*ast.SelectorExpr)
-		if !ok {
-			return true
-		}
-		qualifier, _ = selector.X.(*ast.Ident)
-		return false
-	})
-	if qualifier == nil || !strings.HasPrefix(rendered, qualifier.Name) {
-		return rendered
-	}
-	for _, spec := range file.Imports {
-		importPath, err := strconv.Unquote(spec.Path.Value)
-		if err != nil {
-			continue
-		}
-		localName := path.Base(importPath)
-		if spec.Name != nil {
-			localName = spec.Name.Name
-		}
-		if localName == qualifier.Name {
-			return sb.AddImport(importPath) + rendered[len(qualifier.Name):]
-		}
-	}
-	return rendered
-}
-
-func emitType(sb sourcecode.GoFileBuffer, exportType ExportType, spec *ast.TypeSpec, file *sourcecode.FileInfo, doc *ast.CommentGroup) {
+func emitType(sb sourcecode.GoFileBuffer, exportType ExportType, spec *ast.TypeSpec, file sourcecode.FileInfo, doc *ast.CommentGroup) int {
 	exported := exportedName(spec.Name.Name, exportType)
 	if exported == "" {
-		return
+		return 0
 	}
 
 	log.Printf("  - export type %s", spec.Name.Name)
+	if sb.AddExport(exported, nil) {
+		log.Printf("    ! duplicate, skip")
+		return 0
+	}
 
 	id := sb.AddImport(file.Container().Path())
 
@@ -309,6 +297,7 @@ func emitType(sb sourcecode.GoFileBuffer, exportType ExportType, spec *ast.TypeS
 	sb.WriteString(genericCall)
 
 	sb.WriteByte('\n')
+	return 1
 }
 
 func exportedName(symbol string, exportType ExportType) string {
@@ -332,18 +321,20 @@ func exportedName(symbol string, exportType ExportType) string {
 		return symbol
 	}
 
-	u := unicode.ToUpper(r)
-	if u == r {
-		panic(fmt.Sprintf("无大小写的符号被标为导出: %q", symbol))
-	}
-
-	return string(unicode.ToUpper(r)) + symbol[utf8.RuneLen(r):]
+	return ""
+	// u := unicode.ToUpper(r)
+	//
+	//	if u == r {
+	//		panic(fmt.Sprintf("无大小写的符号被标为导出: %q", symbol))
+	//	}
+	//
+	// return string(unicode.ToUpper(r)) + symbol[utf8.RuneLen(r):]
 }
 
 var exportedRegex = regexp.MustCompile(`^//\s*@(public|exported)`)
 var privateRegex = regexp.MustCompile(`^//\s*@(private|internal|unexported)`)
 
-func checkDefault(file *sourcecode.FileInfo) ExportType {
+func checkDefault(file sourcecode.FileInfo) ExportType {
 	for _, group := range file.Comments {
 		if group.Pos() > file.Package {
 			break

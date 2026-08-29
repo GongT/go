@@ -22,7 +22,7 @@ func main() {
 	fmt.Println("Output file:", output_file)
 
 	buff := sourcecode.NewGoFileBuffer()
-	writer := myenv.Must1(env.NewOutput(output_file.Raw(), buff))
+	writer := myenv.Must1(env.NewOutput(output_file, buff))
 
 	myenv.Must(writer.LearnPackageName())
 

@@ -31,7 +31,7 @@ func main() {
 	outputDir := env.InputPath().Dir()
 	outputBuffer := sourcecode.NewGoFileBuffer()
 
-	fileWriter := myenv.Must1(env.NewOutput(env.InputPath().Raw(), outputBuffer))
+	fileWriter := myenv.Must1(env.NewOutput(env.InputPath(), outputBuffer))
 
 	pkgName := myenv.Must1(sourcecode.DetectPackageName(outputDir))
 	outputBuffer.SetPackageName(pkgName)

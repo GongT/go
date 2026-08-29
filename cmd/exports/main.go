@@ -18,7 +18,7 @@ import (
 const MAGIC_STRING = "33084b74-3121-47cd-9093-db68da5893bc"
 
 type Options struct {
-	VerboseMode bool `long:"verbose" description:"Enable verbose mode for debugging"`
+	VerboseMode bool `long:"verbose" short:"v" description:"Enable verbose mode for debugging" env:"VERBOSE"`
 }
 
 var allowFileName = regexp.MustCompile(`^exports(?:_(.+))?\.go$`)
@@ -49,15 +49,16 @@ func main() {
 	if !opts.VerboseMode {
 		log.SetOutput(io.Discard)
 	}
-	bs := myenv.Must1(internal.ParseFiles(internalDir))
+
+	bs := myenv.Must1(internal.ParseFiles(env, internalDir)) // main
 	if !opts.VerboseMode {
 		log.SetOutput(os.Stderr)
 	}
 
-	pkgName := myenv.Must1(sourcecode.DetectPackageName(env.InputPath().Dir().Raw()))
+	pkgName := myenv.Must1(sourcecode.DetectPackageName(env.InputPath().Dir()))
 	bs.SetPackageName(pkgName)
 
-	writer := myenv.Must1(env.NewOutput(env.InputPath().Raw(), bs))
+	writer := myenv.Must1(env.NewOutput(env.InputPath(), bs))
 
 	codegen.WriteGeneratorComment(bs.Heading(), env.GeneratorName(), nil)
 
