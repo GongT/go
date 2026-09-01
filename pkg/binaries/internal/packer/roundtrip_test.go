@@ -2,16 +2,19 @@ package packer
 
 import (
 	"bytes"
-	"encoding/binary"
 	"testing"
 
+	"github.com/gongt/go/internal/myenv"
+	"github.com/gongt/go/pkg/binaries/internal/endian"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPackThenUnpack(t *testing.T) {
+	myenv.T(t)
+
 	stream := bytes.Buffer{}
 
-	packer := NewPack(&stream, binary.LittleEndian)
+	packer := NewPack(&stream, endian.LittleEndian)
 	values := struct {
 		uintValue    uint
 		uint64Value  uint64
@@ -62,7 +65,7 @@ func TestPackThenUnpack(t *testing.T) {
 	packer.WriteString(values.text)
 	packer.WriteBytes(values.raw)
 
-	unpacker := NewUnpack(binary.LittleEndian, stream.Bytes())
+	unpacker := NewUnpack(endian.LittleEndian, stream.Bytes())
 	assert := func(name string, expected any, read func() (any, error)) {
 		t.Helper()
 		actual, err := read()

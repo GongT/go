@@ -4,28 +4,28 @@ package packer
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
 
+	"github.com/gongt/go/pkg/binaries/internal/endian"
 	"github.com/gongt/go/pkg/errors"
 )
 
 type Unpacker = *unpacker
 type unpacker struct {
 	buff   bytes.Buffer
-	endian binary.ByteOrder
+	endian endian.ByteOrder
 }
 
-// NewUnpack 创建一个新的unpacker实例，不应再使用data的原始引用
-func NewUnpack(endian binary.ByteOrder, data []byte) Unpacker {
-	if endian == nil {
-		endian = binary.LittleEndian
+// NewUnpack 创建一个新的unpacker实例，不应再使用data的原始引用，尤其是不能修改data的内容
+func NewUnpack(byteOrder endian.ByteOrder, data []byte) Unpacker {
+	if byteOrder.IsNull() {
+		byteOrder = endian.LittleEndian
 	}
 	return &unpacker{
 		buff:   *bytes.NewBuffer(data),
-		endian: endian,
+		endian: byteOrder,
 	}
 }
 
@@ -51,7 +51,7 @@ func (p *unpacker) Grow(n int) {
 }
 
 // reader 从缓冲区读取或预览指定长度的数据
-func reader[T any](peek bool, p *unpacker, size int, readFunc func([]byte, binary.ByteOrder) (T, error)) (T, error) {
+func reader[T any](peek bool, p *unpacker, size int, readFunc func([]byte, endian.ByteOrder) (T, error)) (T, error) {
 	if p.buff.Len() < size {
 		var zero T
 		return zero, errors.EnsureTrace(io.EOF)
@@ -275,21 +275,21 @@ func (p *unpacker) NextComplex128() (complex128, error) {
 
 /* 工具 */
 
-func _read_bytes(data []byte, _ binary.ByteOrder) ([]byte, error) {
+func _read_bytes(data []byte, _ endian.ByteOrder) ([]byte, error) {
 	return data, nil
 }
 
-func _read_bytes_safe(data []byte, _ binary.ByteOrder) ([]byte, error) {
+func _read_bytes_safe(data []byte, _ endian.ByteOrder) ([]byte, error) {
 	copied := make([]byte, len(data))
 	copy(copied, data)
 	return copied, nil
 }
 
-func _read_string(data []byte, _ binary.ByteOrder) (string, error) {
+func _read_string(data []byte, _ endian.ByteOrder) (string, error) {
 	return string(data), nil
 }
 
-func _read_bool(data []byte, _ binary.ByteOrder) (bool, error) {
+func _read_bool(data []byte, _ endian.ByteOrder) (bool, error) {
 	switch data[0] {
 	case 0:
 		return false, nil
@@ -300,49 +300,43 @@ func _read_bool(data []byte, _ binary.ByteOrder) (bool, error) {
 	}
 }
 
-func _read_uint64(data []byte, endian binary.ByteOrder) (uint64, error) {
+func _read_uint64(data []byte, endian endian.ByteOrder) (uint64, error) {
 	return endian.Uint64(data), nil
 }
-func _read_uint32(data []byte, endian binary.ByteOrder) (uint32, error) {
+func _read_uint32(data []byte, endian endian.ByteOrder) (uint32, error) {
 	return endian.Uint32(data), nil
 }
-func _read_uint16(data []byte, endian binary.ByteOrder) (uint16, error) {
+func _read_uint16(data []byte, endian endian.ByteOrder) (uint16, error) {
 	return endian.Uint16(data), nil
 }
-func _read_uint8(data []byte, endian binary.ByteOrder) (uint8, error) {
+func _read_uint8(data []byte, endian endian.ByteOrder) (uint8, error) {
 	return data[0], nil
 }
 
-func _read_int64(data []byte, endian binary.ByteOrder) (int64, error) {
-	return int64(endian.Uint64(data)), nil
+func _read_int64(data []byte, endian endian.ByteOrder) (int64, error) {
+	return endian.Int64(data), nil
 }
-func _read_int32(data []byte, endian binary.ByteOrder) (int32, error) {
-	return int32(endian.Uint32(data)), nil
+func _read_int32(data []byte, endian endian.ByteOrder) (int32, error) {
+	return endian.Int32(data), nil
 }
-func _read_int16(data []byte, endian binary.ByteOrder) (int16, error) {
-	return int16(endian.Uint16(data)), nil
+func _read_int16(data []byte, endian endian.ByteOrder) (int16, error) {
+	return endian.Int16(data), nil
 }
-func _read_int8(data []byte, endian binary.ByteOrder) (int8, error) {
+func _read_int8(data []byte, endian endian.ByteOrder) (int8, error) {
 	return int8(data[0]), nil
 }
 
-func _read_float32(data []byte, endian binary.ByteOrder) (float32, error) {
-	return math.Float32frombits(endian.Uint32(data)), nil
+func _read_float32(data []byte, endian endian.ByteOrder) (float32, error) {
+	return endian.Float32(data), nil
 }
-func _read_float64(data []byte, endian binary.ByteOrder) (float64, error) {
-	return math.Float64frombits(endian.Uint64(data)), nil
-}
-
-func _read_complex64(data []byte, endian binary.ByteOrder) (complex64, error) {
-	// 前4字节为实部，后4字节为虚部
-	realPart := math.Float32frombits(endian.Uint32(data[:4]))
-	imagPart := math.Float32frombits(endian.Uint32(data[4:]))
-	return complex(realPart, imagPart), nil
+func _read_float64(data []byte, endian endian.ByteOrder) (float64, error) {
+	return endian.Float64(data), nil
 }
 
-func _read_complex128(data []byte, endian binary.ByteOrder) (complex128, error) {
-	// 前8字节为实部，后8字节为虚部
-	realPart := math.Float64frombits(endian.Uint64(data[:8]))
-	imagPart := math.Float64frombits(endian.Uint64(data[8:]))
-	return complex(realPart, imagPart), nil
+func _read_complex64(data []byte, endian endian.ByteOrder) (complex64, error) {
+	return endian.Complex64(data), nil
+}
+
+func _read_complex128(data []byte, endian endian.ByteOrder) (complex128, error) {
+	return endian.Complex128(data), nil
 }

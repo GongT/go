@@ -2,15 +2,18 @@ package packer
 
 import (
 	"bytes"
-	"encoding/binary"
 	"testing"
 
+	"github.com/gongt/go/internal/myenv"
+	"github.com/gongt/go/pkg/binaries/internal/endian"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPackMatchesNativeEndianBytes(t *testing.T) {
+	myenv.T(t)
+
 	stream := bytes.Buffer{}
-	packer := NewPack(&stream, binary.LittleEndian)
+	packer := NewPack(&stream, endian.LittleEndian)
 
 	packer.WriteBytes([]byte{0xaa, 0xbb})
 	packer.WriteString("go")
@@ -44,4 +47,5 @@ func TestPackMatchesNativeEndianBytes(t *testing.T) {
 		0x00, 0x00, 0xc0, 0x3f,
 	}
 	require.Equal(t, expected, stream.Bytes())
+	require.Equal(t, true, packer.IsBuffered())
 }

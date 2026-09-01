@@ -6,31 +6,31 @@
 package reflection
 
 import (
-	PqpLsWuoVY "github.com/gongt/go/pkg/logger"
+	"github.com/gongt/go/pkg/logger"
 )
 
 const _dbg_tag = "gongt:pkg:reflection"
 
 func debug(msg string) {
-	PqpLsWuoVY.DLog(_dbg_tag, msg)
+	logger.DLog(_dbg_tag, msg)
 }
 
 var _ = debug
 
 func debugf(fmt string, args ...any) {
-	PqpLsWuoVY.DLogF(_dbg_tag, fmt, args...)
+	logger.DLogF(_dbg_tag, fmt, args...)
 }
 
 var _ = debugf
 
 func print(fmt string) {
-	PqpLsWuoVY.Log(_dbg_tag, fmt)
+	logger.Log(_dbg_tag, fmt)
 }
 
 var _ = print
 
 func printf(fmt string, args ...any) {
-	PqpLsWuoVY.LogF(_dbg_tag, fmt, args...)
+	logger.LogF(_dbg_tag, fmt, args...)
 }
 
 var _ = printf

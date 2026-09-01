@@ -14,13 +14,13 @@ func TestGoModFile(t *testing.T) {
 	me, _ := myenv.CurrentFileLine()
 
 	mod, err := FindGoMod(me)
-	errfmt.TestNoError(t, err)
+	errfmt.NoError(t, err)
 
 	modName, err := mod.GetModuleName()
-	errfmt.TestNoError(t, err)
+	errfmt.NoError(t, err)
 	assert.Equal(t, "github.com/gongt/go", modName)
 
 	meLoc, err := mod.CalculateImportPath(me)
-	errfmt.TestNoError(t, err)
+	errfmt.NoError(t, err)
 	assert.Equal(t, "github.com/gongt/go/pkg/source_code", meLoc)
 }

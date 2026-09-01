@@ -19,19 +19,19 @@ func Test_ParseFiles(t *testing.T) {
 	me, _ := myenv.CurrentFileLine()
 
 	f := fpath.New(me).Join("../../../../assets/exports/internal")
-	errfmt.TestNoError(t, f.RealpathExisting())
+	errfmt.NoError(t, f.RealpathExisting())
 	log.Printf("输入: %s", f.Raw())
 
 	buff, err := ParseFiles(codegen.TestingEnvironment(t), f.Immutable())
 
-	errfmt.TestNoError(t, err)
+	errfmt.NoError(t, err)
 
 	buff.Heading().WriteString("// SOME HEADING TEXT")
 	buff.SetPackageName("test_pkg")
 
 	expectFile := f.Immutable().Join("../output.go").Raw()
 	content, err := os.ReadFile(expectFile)
-	errfmt.TestNoError(t, err)
+	errfmt.NoError(t, err)
 
 	defer func() {
 		if t.Failed() {

@@ -3,6 +3,7 @@ package errfmt
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/gongt/go/pkg/errors"
@@ -11,6 +12,7 @@ import (
 	"github.com/gongt/go/pkg/errors/stacktrace"
 	"github.com/gongt/go/pkg/strings/color_builder"
 	CSI "github.com/gongt/go/pkg/strings/csi"
+	"github.com/gongt/go/pkg/strings/strtools"
 )
 
 type SB = *color_builder.ColorBuilder
@@ -70,8 +72,14 @@ func formatErrorOne(sb SB, err error, level uint) {
 	if strace := errors.GetStackTrace(err); len(strace) > 0 {
 		formatStack(sb, strace, level)
 	} else {
-		sb.WriteLine("  - %s缺少栈信息%s", CSI.Fore|CSI.Yellow, CSI.Fore.ToReset())
-		formatStack(sb, stacktrace.CaptureStackTrace(0, 0), level)
+		st := stacktrace.CaptureStackTrace(0, 0)
+
+		if stacktrace.DetectPanicPath(st) {
+			sb.WriteLine("  ! %s检测到panic路径%s", CSI.Fore|CSI.Yellow, CSI.Fore.ToReset())
+		} else {
+			sb.WriteLine("  - %s缺少栈信息%s", CSI.Fore|CSI.Yellow, CSI.Fore.ToReset())
+		}
+		formatStack(sb, st, level)
 	}
 	sb.NewLine()
 }
@@ -117,7 +125,7 @@ func formatStack(sb *color_builder.ColorBuilder, stack stacktrace.StackTraceArra
 		} else {
 			var funcName, anon string
 
-			parts := strings.Split(frame.Function, ".") // Split返回不可能为空，至少有一个元素
+			parts := slices.Collect(strtools.SplitSingle(frame.Function, '.')) // Split返回不可能为空，至少有一个元素
 			last, parts, _ := pop(parts)
 
 			if matched, _ := regexp.MatchString(`^func\d+$`, *last); matched { // 匿名函数
@@ -145,6 +153,8 @@ func formatStack(sb *color_builder.ColorBuilder, stack stacktrace.StackTraceArra
 					sb.WriteWrap(CSI.Dim|CSI.Italic, anon)
 				}
 			}
+
+			sb.WriteWrap(CSI.Dim, fmt.Sprintf("  0x%x", frame.PC))
 		}
 
 		sb.NewLine()

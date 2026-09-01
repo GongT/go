@@ -1,14 +1,17 @@
 package packer
 
 import (
-	"encoding/binary"
 	"io"
 	"testing"
 
+	"github.com/gongt/go/internal/myenv"
+	"github.com/gongt/go/pkg/binaries/internal/endian"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUnpackMatchesNativeEndianBytes(t *testing.T) {
+	myenv.T(t)
+
 	data := []byte{
 		0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01,
 		0x18, 0x17, 0x16, 0x15, 0x14, 0x13, 0x12, 0x11,
@@ -23,7 +26,7 @@ func TestUnpackMatchesNativeEndianBytes(t *testing.T) {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xc0,
 		0x00, 0x00, 0xc0, 0x3f,
 	}
-	unpacker := NewUnpack(binary.NativeEndian, data)
+	unpacker := NewUnpack(endian.LittleEndian, data)
 
 	assertNext := func(name string, expected any, read func() (any, error)) {
 		t.Helper()
@@ -48,7 +51,7 @@ func TestUnpackMatchesNativeEndianBytes(t *testing.T) {
 
 	require.Zero(t, unpacker.Len())
 
-	peek := NewUnpack(binary.LittleEndian, []byte{0xaa, 0xbb, 0xcc})
+	peek := NewUnpack(endian.LittleEndian, []byte{0xaa, 0xbb, 0xcc})
 	preview, err := peek.Peek(2)
 	require.NoError(t, err)
 	require.Equal(t, []byte{0xaa, 0xbb}, preview)

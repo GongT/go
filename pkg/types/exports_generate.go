@@ -6,36 +6,44 @@
 package types
 
 import (
-	cdQnIBqUXCFY "github.com/gongt/go/pkg/types/internal/collection"
-	bDZGGWjLvIrw "github.com/gongt/go/pkg/types/internal/config_loader"
-	bHWoyPpYVbah "github.com/gongt/go/pkg/types/internal/sets"
-	bFmCwXUFsYSf "github.com/gongt/go/pkg/types/internal/slices"
+	"github.com/gongt/go/pkg/types/internal/collection"
+	"github.com/gongt/go/pkg/types/internal/config_loader"
+	"github.com/gongt/go/pkg/types/internal/sets"
+	"github.com/gongt/go/pkg/types/internal/slices"
 )
 
+// - ./pkg/types/internal/collection/collection.go
+
 // Collection 任意类型指针的可重复的集合
-type Collection[T comparable] = cdQnIBqUXCFY.Collection[T]
-type RemoveFunc = cdQnIBqUXCFY.RemoveFunc
+type Collection[T comparable] = collection.Collection[T]
+type RemoveFunc = collection.RemoveFunc
 
 // SharedCollection 线程安全的 [Collection]
-type SharedCollection[T comparable] = cdQnIBqUXCFY.SharedCollection[T]
+type SharedCollection[T comparable] = collection.SharedCollection[T]
+
+// - ./pkg/types/internal/config_loader/config_regexp.go
 
 // Regexp 是一个包装了 regexp.Regexp 的结构体，用于从配置文件中读取
-type Regexp = bDZGGWjLvIrw.Regexp
+type Regexp = config_loader.Regexp
+
+// - ./pkg/types/internal/sets/array_set.go
 
 // Set 集合的数组简易实现，适合只有几个元素的情况
-type Set[T comparable] = bHWoyPpYVbah.Set[T]
+type Set[T comparable] = sets.Set[T]
 
 // SharedSet 线程安全的 [Set]
-type SharedSet[T comparable] = bHWoyPpYVbah.SharedSet[T]
+type SharedSet[T comparable] = sets.SharedSet[T]
+
+// - ./pkg/types/internal/slices/filter.go
 
 // MapOf 生成一个map，key为keys中的元素，value为value
 func MapOf[K comparable, V any](arg1 []K, arg2 V) map[K]V {
-	return bFmCwXUFsYSf.MapOf(arg1, arg2)
+	return slices.MapOf(arg1, arg2)
 }
 
 // EmptyMapOf 生成一个map，key为keys中的元素，value为struct{}{}
 func EmptyMapOf[K comparable](arg1 []K) map[K]struct{} {
-	return bFmCwXUFsYSf.EmptyMapOf(arg1)
+	return slices.EmptyMapOf(arg1)
 }
 
 // IntersectInplace 将a中不存在于b的元素移除，即a和b的交集
@@ -44,5 +52,5 @@ func EmptyMapOf[K comparable](arg1 []K) map[K]struct{} {
 //
 // 重复元素会被移除
 func IntersectInplace[T comparable](arg1 *[]T, arg2 []T) {
-	bFmCwXUFsYSf.IntersectInplace(arg1, arg2)
+	slices.IntersectInplace(arg1, arg2)
 }

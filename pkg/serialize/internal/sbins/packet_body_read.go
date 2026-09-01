@@ -10,7 +10,6 @@ import (
 	"github.com/gongt/go/pkg/errors"
 	"github.com/gongt/go/pkg/interfaces"
 	"github.com/gongt/go/pkg/serialize/kinds"
-	"github.com/gongt/go/pkg/strings/packer"
 )
 
 type PacketRead = *packet_read

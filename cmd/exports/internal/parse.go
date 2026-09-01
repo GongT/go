@@ -26,7 +26,7 @@ func ParseFiles(env codegen.GeneratorEnvironment, dirPath *fpath.IPath) (sourcec
 	}
 
 	fsb := sourcecode.NewGoFileBuffer()
-	fsb.NamePackage = sourcecode.IndexName
+	fsb.NamePackage = sourcecode.OriginalName
 
 	for _, content := range iterator.SortedMap(infoMap) {
 		if len(content.Decls) == 0 {
@@ -34,7 +34,12 @@ func ParseFiles(env codegen.GeneratorEnvironment, dirPath *fpath.IPath) (sourcec
 			continue
 		}
 		fmt.Fprintf(fsb, "// - %s\n\n", fpath.MustRelative(content.Filename, env.WorkspaceRoot()))
-		ParseFile(fsb, content)
+		cnt := ParseFile(fsb, content)
+
+		if cnt == 0 {
+			fsb.WriteString("// No exported symbols\n")
+		}
+
 		fsb.WriteString("\n\n")
 	}
 
@@ -49,14 +54,12 @@ const (
 	ForceExport
 )
 
-func ParseFile(sb sourcecode.GoFileBuffer, fileInfo sourcecode.FileInfo) {
+func ParseFile(sb sourcecode.GoFileBuffer, fileInfo sourcecode.FileInfo) (exportedCount int) {
 	log.Printf("Processing file: %s", fileInfo.Filename)
 	// log.Println(content.Package.Path())
 
 	defaultsExport := checkDefault(fileInfo)
 	log.Printf("  - defaults export? %v", defaultsExport)
-
-	var exportedCount int
 
 	for _, decl := range fileInfo.Decls {
 		switch decl := decl.(type) {
@@ -101,6 +104,7 @@ func ParseFile(sb sourcecode.GoFileBuffer, fileInfo sourcecode.FileInfo) {
 			log.Printf("Other declaration type: %T", decl)
 		}
 	}
+	return
 }
 
 func emitVar(sb sourcecode.GoFileBuffer, exportType ExportType, isVar bool, symbol string, file sourcecode.FileInfo, doc *ast.CommentGroup) int {

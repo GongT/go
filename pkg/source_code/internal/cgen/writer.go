@@ -98,18 +98,19 @@ func (w *SafeTextWriter) ForceOverride() error {
 		panic("ForceOverride()/WriteFile()之前必须先调用Prepare()")
 	}
 
-	fw, err := os.Create(w.path.Raw())
-	if err != nil {
-		return errors.Extend(err, "无法打开文件").WithDetails("path", w.path.Raw())
-	}
-	defer fw.Close()
-
 	bytes := w.content.Bytes()
-	if n, err := fw.Write(bytes); err != nil {
+
+	name := "." + w.path.Base().String() + ".tmp"
+	temp := w.path.SetBase(name)
+	if err := os.WriteFile(temp.Raw(), bytes, 0644); err != nil {
 		return errors.Extend(err, "文件写入错误").WithDetails("path", w.path.Raw())
-	} else {
-		log.Printf("写入%d字节，文件: %s", n, w.path.Raw())
 	}
+
+	if err := os.Rename(temp.Raw(), w.path.Raw()); err != nil {
+		return errors.Extend(err, "文件重命名错误").WithDetails("from", temp.Raw(), "to", w.path.Raw())
+	}
+
+	log.Printf("写入%d字节，文件: %s", len(bytes), w.path.Raw())
 
 	return nil
 }

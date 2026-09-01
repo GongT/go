@@ -6,43 +6,75 @@
 package errors
 
 import (
-	udzBalWrrTt "iter"
+	"iter"
 
-	iJQdTeodqqt "github.com/gongt/go/pkg/errors/internal"
-	bJdHFZXnetMM "github.com/gongt/go/pkg/errors/internal/iterator"
+	"github.com/gongt/go/pkg/errors/internal"
+	"github.com/gongt/go/pkg/errors/internal/iterator"
 )
 
-type StackTrace = iJQdTeodqqt.StackTrace
-type UnJoin = iJQdTeodqqt.UnJoin
+// - ./pkg/errors/internal/ifaces.go
+
+type StackTrace = internal.StackTrace
+type UnJoin = internal.UnJoin
 
 func IsJoined(arg1 error) bool {
-	return iJQdTeodqqt.IsJoined(arg1)
+	return internal.IsJoined(arg1)
 }
 
-type UnWrap = iJQdTeodqqt.UnWrap
-type Detailer = iJQdTeodqqt.Detailer
-type MessageOverrider = iJQdTeodqqt.MessageOverrider
-type DetailerWriter = iJQdTeodqqt.DetailerWriter
-type AlsoBe = iJQdTeodqqt.AlsoBe
+type UnWrap = internal.UnWrap
+type Detailer = internal.Detailer
+type MessageOverrider = internal.MessageOverrider
+type DetailerWriter = internal.DetailerWriter
+type AlsoBe = internal.AlsoBe
+
+// - ./pkg/errors/internal/iterator/helper.go
+
+// No exported symbols
+
+// - ./pkg/errors/internal/iterator/iterator.go
 
 // [底层操作] 循环遍历一个错误的Wrap()链
 //   - 遇到Join()时: 继续递归它的第一个错误
-func IterWrapChain(arg1 error) udzBalWrrTt.Seq[error] {
-	return bJdHFZXnetMM.IterWrapChain(arg1)
+func IterWrapChain(arg1 error) iter.Seq[error] {
+	return iterator.IterWrapChain(arg1)
 }
 
 // [底层操作] 循环遍历一个错误的reason链
-func IterReasonChain(arg1 error) udzBalWrrTt.Seq[error] {
-	return bJdHFZXnetMM.IterReasonChain(arg1)
+func IterReasonChain(arg1 error) iter.Seq[error] {
+	return iterator.IterReasonChain(arg1)
 }
 
 // [底层操作] 循环遍历一个错误的Wrap()、Join()链，
 //   - 第二个yield值为Join()层级
-func IterWrapTree(arg1 error) udzBalWrrTt.Seq2[error, uint] {
-	return bJdHFZXnetMM.IterWrapTree(arg1)
+func IterWrapTree(arg1 error) iter.Seq2[error, uint] {
+	return iterator.IterWrapTree(arg1)
 }
 
 // [底层操作] 遍历 Wrap()、Join() 链，并在发现附加数据时yield
-func IterEveryDetail(arg1 error) udzBalWrrTt.Seq[map[string]any] {
-	return bJdHFZXnetMM.IterEveryDetail(arg1)
+func IterEveryDetail(arg1 error) iter.Seq[map[string]any] {
+	return iterator.IterEveryDetail(arg1)
 }
+
+// - ./pkg/errors/internal/tools/detail.go
+
+// No exported symbols
+
+// - ./pkg/errors/internal/types/base.go
+
+// No exported symbols
+
+// - ./pkg/errors/internal/types/generic.go
+
+// No exported symbols
+
+// - ./pkg/errors/internal/types/join.go
+
+// No exported symbols
+
+// - ./pkg/errors/internal/types/template.go
+
+// No exported symbols
+
+// - ./pkg/errors/internal/types/wrap.go
+
+// No exported symbols

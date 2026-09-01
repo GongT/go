@@ -6,9 +6,10 @@ import (
 
 	"github.com/gongt/go/internal/myenv"
 	"github.com/gongt/go/pkg/errors"
+	"github.com/gongt/go/pkg/interfaces"
 )
 
-var _ io.Closer = (*Buffer)(nil)
+var _ interfaces.Closable = (*Buffer)(nil)
 
 // 可以关闭的[bytes.Buffer]，关闭后所有写入操作都会返回错误，但仍然可以读取
 type Buffer struct {

@@ -3,6 +3,7 @@ package stacktrace
 import (
 	"iter"
 	"runtime"
+	_ "unsafe"
 )
 
 type StackTraceArray = []uintptr
@@ -49,4 +50,41 @@ func IterateFrames(frames *runtime.Frames) Iter {
 			index++
 		}
 	}
+}
+
+// var panicFunctionPC uintptr
+//
+// func loadPanicPc() {
+// 	recover()
+// 	pc, _, _, ok := runtime.Caller(1)
+// 	if ok {
+// 		if myenv.IsDebug {
+// 			myenv.Assert(runtime.FuncForPC(pc).Name() == "runtime.gopanic", "栈状态错误")
+// 		}
+// 		fmt.Printf("Detected gopanic PC is %x\n", pc)
+// 		panicFunctionPC = pc
+// 	}
+// 	if panicFunctionPC == 0 {
+// 		println("Failed to detect gopanic PC, returning 0")
+// 	}
+// }
+
+// func init() {
+// 	defer loadPanicPc()
+// 	panic("trigger")
+// }
+
+func DetectPanicPath(stack StackTraceArray) bool {
+	// if panicFunctionPC > 0 && slices.Contains(stack, panicFunctionPC+1) {
+	// gopanic+1 大概就是stack中的值，但完全无法保证
+	// return true
+	// } else {
+	for frame := range IterateStack(stack) {
+		if frame.Func != nil && frame.Func.Name() == "runtime.gopanic" {
+			println("Detected panic path in stack trace", frame.PC)
+			return true
+		}
+	}
+	return false
+	// }
 }

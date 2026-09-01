@@ -6,51 +6,92 @@
 package binaries
 
 import (
-	pkg2 "encoding/binary"
-	pkg1 "io"
+	"io"
 
-	pkg0 "github.com/gongt/go/pkg/binaries/internal/packer"
-	pkg3 "github.com/gongt/go/pkg/binaries/internal/streaming"
-	pkg4 "github.com/gongt/go/pkg/interfaces"
+	"github.com/gongt/go/pkg/binaries/internal/endian"
+	"github.com/gongt/go/pkg/binaries/internal/packer"
+	"github.com/gongt/go/pkg/binaries/internal/streaming"
+	"github.com/gongt/go/pkg/interfaces"
 )
+
+// - ./pkg/binaries/internal/endian/endian.go
+
+// LittleEndian 包装[binary.LittleEndian]添加了各种类型的函数
+var LittleEndian = endian.LittleEndian
+
+// BigEndian 包装[binary.BigEndian]添加了各种类型的函数
+var BigEndian = endian.BigEndian
+
+// NativeEndian 包装本地字节序添加了各种类型的函数
+var NativeEndian = endian.NativeEndian
+
+// - ./pkg/binaries/internal/endian/endian_basic.go
+
+// No exported symbols
+
+// - ./pkg/binaries/internal/endian/endian_inherit.go
+
+// No exported symbols
 
 // - ./pkg/binaries/internal/packer/pack.go
 
-type Packer = pkg0.Packer
+type Packer = packer.Packer
 
 // NewPack 创建一个新的packer实例
-func NewPack(arg1 pkg1.Writer, arg2 pkg2.ByteOrder) pkg0.Packer {
-	return pkg0.NewPack(arg1, arg2)
+func NewPack[T io.Writer](arg1 T, arg2 endian.ByteOrder) packer.Packer {
+	return packer.NewPack(arg1, arg2)
 }
+
+func NewPackEndian[T io.Writer](arg1 T, arg2 endian.ByteOrder) packer.Packer {
+	return packer.NewPackEndian(arg1, arg2)
+}
+
+// - ./pkg/binaries/internal/packer/pack_buffer.go
+
+// No exported symbols
+
+// - ./pkg/binaries/internal/packer/pack_writer.go
+
+// No exported symbols
 
 // - ./pkg/binaries/internal/packer/unpack.go
 
-type Unpacker = pkg0.Unpacker
+type Unpacker = packer.Unpacker
 
-// NewUnpack 创建一个新的unpacker实例，不应再使用data的原始引用
-func NewUnpack(arg1 pkg2.ByteOrder, arg2 []byte) pkg0.Unpacker {
-	return pkg0.NewUnpack(arg1, arg2)
+// NewUnpack 创建一个新的unpacker实例，不应再使用data的原始引用，尤其是不能修改data的内容
+func NewUnpack(arg1 endian.ByteOrder, arg2 []byte) packer.Unpacker {
+	return packer.NewUnpack(arg1, arg2)
 }
 
 // - ./pkg/binaries/internal/streaming/chunked_reader.go
 
-type ChunkReader = pkg3.ChunkReader
+type ChunkReader = streaming.ChunkReader
 
 // NewChunkReader 创建一个新的chunkReader实例，sep为数据块的分隔符
-func NewChunkReader[T pkg4.ByteSeq](arg1 T) pkg3.ChunkReader {
-	return pkg3.NewChunkReader(arg1)
+func NewChunkReader[T interfaces.ByteSeq](arg1 T) streaming.ChunkReader {
+	return streaming.NewChunkReader(arg1)
 }
 
 // - ./pkg/binaries/internal/streaming/shared.go
 
-var ErrInsufficientBuffer = pkg3.ErrInsufficientBuffer
+var ErrInsufficientBuffer = streaming.ErrInsufficientBuffer
 
 // - ./pkg/binaries/internal/streaming/stream_buffer.go
 
-type StreamBuffer = pkg3.StreamBuffer
+type StreamBuffer = streaming.StreamBuffer
 
-func NewStreamBuffer() pkg3.StreamBuffer {
-	return pkg3.NewStreamBuffer()
+func NewStreamBuffer() streaming.StreamBuffer {
+	return streaming.NewStreamBuffer()
 }
 
+// - ./pkg/binaries/internal/struct_stream/struct_stream.go
+
+// No exported symbols
+
 // - ./pkg/binaries/internal/struct_stream/struct_stream_read.go
+
+// No exported symbols
+
+// - ./pkg/binaries/internal/struct_stream/struct_stream_write.go
+
+// No exported symbols

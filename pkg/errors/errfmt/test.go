@@ -1,6 +1,7 @@
 package errfmt
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -8,7 +9,7 @@ import (
 	"github.com/gongt/go/pkg/errors"
 )
 
-func TestNoError(t *testing.T, err error) {
+func NoError(t testing.TB, err error) {
 	if err == nil {
 		return
 	}
@@ -45,4 +46,23 @@ func Panic(err error) {
 	} else {
 		panic(errors.Extend(err, "panic"))
 	}
+}
+
+func Recover(t testing.TB) {
+	if r := recover(); r != nil {
+		fmt.Println("测试发生panic:")
+		fmt.Printf("%s\n", FormatError(r, myenv.StderrIsTerminal))
+		t.FailNow()
+	}
+}
+
+func RedirectDebugTesting(t testing.TB) func() {
+	myenv.RedirectDebugTesting(t)
+	return func() {
+		Recover(t)
+	}
+}
+
+func T(t testing.TB) func() {
+	return RedirectDebugTesting(t)
 }
